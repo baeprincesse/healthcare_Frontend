@@ -1,0 +1,21 @@
+import { Download, FileText, FlaskConical, Image, Pill, UploadCloud, Eye } from 'lucide-react'
+
+const records = [
+  { name: 'General Consultation', type: 'Visit', date: 'May 19, 2026', provider: 'Dr. Marie Essomba', hospital: 'Harmony Hospital', icon: FileText },
+  { name: 'Blood Test Results', type: 'Lab Result', date: 'May 15, 2026', provider: 'City Lab', hospital: 'City Clinic', icon: FlaskConical },
+  { name: 'Chest X-Ray', type: 'Imaging', date: 'May 10, 2026', provider: 'Hope Medical Center', hospital: 'Hope Medical Center', icon: Image },
+  { name: 'Prescription - Antibiotics', type: 'Prescription', date: 'May 5, 2026', provider: 'Dr. Alain Kamga', hospital: 'Hope Medical Center', icon: Pill },
+  { name: 'Urine Test Results', type: 'Lab Result', date: 'Apr 28, 2026', provider: 'Life Care Clinic', hospital: 'Life Care Clinic', icon: FlaskConical },
+]
+
+export default function MedicalRecords() {
+  return <div className="mx-auto max-w-[1250px]">
+    <div className="mb-6 flex flex-col justify-between gap-4 sm:flex-row sm:items-end"><div><h1 className="text-2xl font-extrabold">My Medical Records</h1><p className="mt-1 text-sm text-[#6E7B76]">Access and manage your health information securely.</p></div><button className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-5 py-3 text-sm font-semibold text-white"><UploadCloud size={17} /> Upload Document</button></div>
+    <div className="mb-4 flex gap-5 overflow-x-auto border-b border-[#E7ECE9] text-sm"><button className="border-b-2 border-emerald-600 px-1 py-3 font-semibold text-emerald-600">All Records</button><button className="px-1 py-3 text-[#6E7B76]">Visits</button><button className="px-1 py-3 text-[#6E7B76]">Prescriptions</button><button className="px-1 py-3 text-[#6E7B76]">Lab Results</button><button className="px-1 py-3 text-[#6E7B76]">Documents</button><button className="px-1 py-3 text-[#6E7B76]">Imaging</button></div>
+    <div className="grid gap-6 xl:grid-cols-[1fr_280px]">
+      <div className="overflow-hidden rounded-2xl border border-[#E7ECE9] bg-white shadow-sm"><div className="overflow-x-auto"><table className="w-full min-w-[760px] text-left text-sm"><thead className="bg-[#F5F7F6] text-xs uppercase tracking-wide text-[#6E7B76]"><tr><th className="px-5 py-4">Record Name</th><th className="px-5 py-4">Type</th><th className="px-5 py-4">Date</th><th className="px-5 py-4">Provider / Location</th><th className="px-5 py-4">Actions</th></tr></thead><tbody>{records.map(({ name, type, date, provider, hospital, icon: Icon }) => <tr key={name} className="border-t border-[#E7ECE9]"><td className="px-5 py-4 font-semibold"><Icon size={16} className="mr-2 inline text-emerald-600" />{name}</td><td className="px-5 py-4"><span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">{type}</span></td><td className="px-5 py-4 text-[#6E7B76]">{date}</td><td className="px-5 py-4"><p>{provider}</p><p className="text-xs text-[#98A29D]">{hospital}</p></td><td className="px-5 py-4"><div className="flex gap-2"><button className="rounded-lg border border-[#E7ECE9] p-2 hover:bg-emerald-50"><Eye size={15} /></button><button className="rounded-lg border border-[#E7ECE9] p-2 hover:bg-emerald-50"><Download size={15} /></button></div></td></tr>)}</tbody></table></div></div>
+      <aside className="space-y-4"><div className="rounded-2xl border border-[#E7ECE9] bg-white p-5 shadow-sm"><h2 className="font-bold">Record Summary</h2><div className="mt-4 space-y-3 text-sm"><Summary label="Total Records" value="24" /><Summary label="Lab Results" value="8" /><Summary label="Prescriptions" value="6" /><Summary label="Imaging" value="5" /><Summary label="Documents" value="5" /></div></div><div className="rounded-2xl bg-emerald-50 p-5"><p className="font-bold text-emerald-800">Your data is secure</p><p className="mt-2 text-xs leading-5 text-emerald-700">Your electronic medical records are kept organized so you can access them when needed.</p></div></aside>
+    </div>
+  </div>
+}
+function Summary({ label, value }) { return <div className="flex items-center justify-between"><span className="text-[#6E7B76]">{label}</span><strong>{value}</strong></div> }
