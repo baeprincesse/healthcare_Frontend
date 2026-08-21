@@ -1,21 +1,19 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { useAuth } from "../context/AuthContext.jsx";
-import logo from "../assets/logo.jpg";
-
-export default function Register() {
-  const { register } = useAuth();
+import { useAuth } from "../../context/AuthContext.jsx";
+import logo from "../../assets/logo.jpg";
+export default function Login() {
+  const { login } = useAuth();
   const navigate = useNavigate();
 
   const [form, setForm] = useState({
-    name: "",
     email: "",
-    phone: "",
     password: "",
-    confirm: "",
   });
 
   const [show, setShow] = useState(false);
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
   const handle = (field) => (event) => {
     setForm((prev) => ({
@@ -24,24 +22,20 @@ export default function Register() {
     }));
   };
 
-  const submit = (event) => {
-    event.preventDefault();
+  const submit = async (event) => {
+  event.preventDefault();
 
-    if (form.password !== form.confirm) {
-      alert("Passwords do not match");
-      return;
-    }
-
-    register({
-      name: form.name,
+  try {
+    await login({
       email: form.email,
-      phone: form.phone,
       password: form.password,
-      confirm: form.confirm,
     });
 
     navigate("/dashboard");
-  };
+  } catch (error) {
+    alert(error.message);
+  }
+};
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-emerald-50 via-white to-slate-50 px-4 py-4">
@@ -62,7 +56,7 @@ export default function Register() {
             </div>
 
             <h2 className="text-xl font-bold text-center">
-              Join MediCare
+              Welcome Back to MediCare
             </h2>
 
             <p className="mt-2 text-xs leading-5 text-emerald-50">
@@ -98,28 +92,17 @@ export default function Register() {
           </div>
 
           <h1 className="text-xl font-bold text-slate-950 text-center">
-            Create your account
+            You are welcome Back
           </h1>
-
-          <p className="mt-1 text-xs text-slate-500 text-center">
-            Join MediCare today.
-          </p>
 
           <form onSubmit={submit} className="mt-4 space-y-3">
 
-            {/* Name */}
-            <label className="block text-xs font-medium text-slate-700">
-              Full name
-
-              <input
-                required
-                type="text"
-                value={form.name}
-                onChange={handle("name")}
-                placeholder="Your full name"
-                className="mt-1.5 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs outline-none transition focus:border-emerald-500 focus:bg-white focus:ring-2 focus:ring-emerald-100"
-              />
-            </label>
+            {/* Error message */}
+            {error && (
+              <div className="rounded-lg bg-red-50 px-3 py-2 text-xs text-red-600">
+                {error}
+              </div>
+            )}
 
             {/* Email */}
             <label className="block text-xs font-medium text-slate-700">
@@ -135,19 +118,6 @@ export default function Register() {
               />
             </label>
 
-            {/* Phone */}
-            <label className="block text-xs font-medium text-slate-700">
-              Phone number
-
-              <input
-                type="tel"
-                value={form.phone}
-                onChange={handle("phone")}
-                placeholder="+237 6XX XXX XXX"
-                className="mt-1.5 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs outline-none transition focus:border-emerald-500 focus:bg-white focus:ring-2 focus:ring-emerald-100"
-              />
-            </label>
-
             {/* Password */}
             <label className="relative block text-xs font-medium text-slate-700">
               Password
@@ -157,7 +127,7 @@ export default function Register() {
                 type={show ? "text" : "password"}
                 value={form.password}
                 onChange={handle("password")}
-                placeholder="Create a password"
+                placeholder="Enter your password"
                 className="mt-1.5 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 pr-12 text-xs outline-none transition focus:border-emerald-500 focus:bg-white focus:ring-2 focus:ring-emerald-100"
               />
 
@@ -170,63 +140,24 @@ export default function Register() {
               </button>
             </label>
 
-            {/* Confirm */}
-            <label className="block text-xs font-medium text-slate-700">
-              Confirm password
-
-              <input
-                required
-                type={show ? "text" : "password"}
-                value={form.confirm}
-                onChange={handle("confirm")}
-                placeholder="Confirm password"
-                className="mt-1.5 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs outline-none transition focus:border-emerald-500 focus:bg-white focus:ring-2 focus:ring-emerald-100"
-              />
-            </label>
-
-            {/* Terms */}
-            <label className="flex items-start gap-2 text-[11px] leading-4 text-slate-500">
-              <input
-                required
-                type="checkbox"
-                className="mt-0.5 h-3.5 w-3.5 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
-              />
-
-              <span>
-                I agree to the{" "}
-                <Link
-                  to="/terms"
-                  className="font-medium text-emerald-600"
-                >
-                  Terms
-                </Link>{" "}
-                and{" "}
-                <Link
-                  to="/privacy"
-                  className="font-medium text-emerald-600"
-                >
-                  Privacy Policy
-                </Link>
-              </span>
-            </label>
-
             {/* Button */}
             <button
               type="submit"
-              className="w-full rounded-lg bg-emerald-600 py-2.5 text-xs font-semibold text-white transition hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-200"
+              disabled={loading}
+              className="w-full rounded-lg bg-emerald-600 py-2.5 text-xs font-semibold text-white transition hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-200 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              Create account
+              {loading ? "Logging in..." : "Login"}
             </button>
 
           </form>
 
           <div className="mt-4 text-center text-xs text-slate-500">
-            Already have an account?{" "}
+            Do not have an account?{" "}
             <Link
-              to="/login"
+              to="/register"
               className="font-semibold text-emerald-600 hover:text-emerald-700"
             >
-             login
+              Sign up
             </Link>
           </div>
 

@@ -1,7 +1,7 @@
 import { CalendarDays, CheckCircle2, FileText, Pill, ArrowRight, Search, UploadCloud, CreditCard } from 'lucide-react'
 import { Link } from 'react-router-dom'
-import { useAuth } from '../context/AuthContext.jsx'
-import logo from "../assets/logo.jpg";
+import { useAuth } from '../../context/AuthContext.jsx'
+import logo from "../../assets/logo.jpg";
 
 const stats = [
   { label: 'Upcoming Appointments', value: 2, icon: CalendarDays, tint: 'bg-blue-50 text-blue-600' },

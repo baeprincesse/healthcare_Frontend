@@ -10,6 +10,7 @@ import {
   Search,
   Settings,
   UserRound,
+  Hospital,
 } from 'lucide-react'
 
 import { useAuth } from '../context/AuthContext.jsx'
@@ -51,6 +52,11 @@ const primaryLinks = [
     label: 'Notifications',
     icon: Bell,
     badge: 3,
+  },
+  {
+    to:'/create',
+    label:'CreateHospital',
+    icon:Hospital,
   },
 ]
 

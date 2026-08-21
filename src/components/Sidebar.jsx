@@ -17,8 +17,10 @@ export default function Sidebar(){
     { icon: '💊', label: 'Prescriptions', path: '/prescriptions' },
     { icon: '💳', label: 'Payments', path: '/payments' },
     { icon: '🔔', label: 'Notifications', path: '/notifications' },
+    {icon: '🏥', label:'CreateHospital', path:'/create'},
     { icon: '👤', label: 'Profile', path: '/profile' },
     { icon: '⚙️', label: 'Settings', path: '/settings' },
+
   ]
 
   const handleLogout = () => {
