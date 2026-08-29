@@ -1,4 +1,4 @@
-import Navbar from '../../components/Navbar.jsx'
+import Navbar from '/src/components/dashboard/Navbar.jsx'
 import { useParams } from 'react-router-dom'
 
 export default function HospitalDetails(){

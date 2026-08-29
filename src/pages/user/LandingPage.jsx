@@ -1,8 +1,8 @@
-import Navbar from '../../components/Navbar.jsx'
-import Footer from '../../components/Footer.jsx'
-import HospitalCard from '../../components/HospitalCard.jsx'
-import DoctorCard from '../../components/DoctorCard.jsx'
-import SearchBar from '../../components/SearchBar.jsx'
+import Navbar from '/src/components/dashboard/Navbar.jsx'
+import Footer from '/src/components/dashboard/Footer.jsx'
+import HospitalCard from '/src/components/cards/HospitalCard.jsx'
+import DoctorCard from '/src/components/dashboard/DoctorCard.jsx'
+import SearchBar from '/src/components/sidebar/SearchBar.jsx'
 
 const hospitals = [
   { id:1, name:'Central Medical Center', city:'Yaoundé', services:['Cardiology','Pediatrics','Emergency'], rating:4.8 },

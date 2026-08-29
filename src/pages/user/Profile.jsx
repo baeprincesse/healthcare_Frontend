@@ -20,7 +20,7 @@
 //   )
 // }
 import { useEffect, useState } from 'react'
-import Navbar from '../../components/Navbar.jsx'
+import Navbar from '../../components/dashboard/Navbar.jsx'
 import { useAuth } from '../../context/AuthContext.jsx'
 import api from '../../services/api.js'
 
@@ -124,7 +124,7 @@ export default function Profile() {
               <span className="font-semibold">
                 Role:
               </span>{' '}
-              {profile?.role || 'patient'}
+              {profile?.role ? (profile.role === 'system_admin' ? 'System Administrator' : profile.role === 'hospital_admin' ? 'Hospital Administrator' : profile.role === 'doctor' ? 'Doctor' : profile.role === 'secretary' ? 'Secretary' : profile.role === 'patient' ? 'Patient' : profile.role) : '—'}
             </div>
 
             {/* <div>

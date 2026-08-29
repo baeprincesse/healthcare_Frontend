@@ -1,6 +1,6 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom'
-import { useAuth } from '../context/AuthContext'
-import SupportCard from './SupportCard'
+import { useAuth } from '../../context/AuthContext'
+import SupportCard from '../SupportCard'
 
 export default function Sidebar(){
   const location = useLocation()

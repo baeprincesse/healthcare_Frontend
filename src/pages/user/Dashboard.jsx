@@ -1,22 +1,37 @@
-import { CalendarDays, CheckCircle2, FileText, Pill, ArrowRight, Search, UploadCloud, CreditCard } from 'lucide-react'
+import { CalendarDays, CheckCircle2, FileText, Pill, ArrowRight, Search, UploadCloud, CreditCard, Video } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext.jsx'
-import logo from "../../assets/logo.jpg";
-
-const stats = [
-  { label: 'Upcoming Appointments', value: 2, icon: CalendarDays, tint: 'bg-blue-50 text-blue-600' },
-  { label: 'Completed Appointments', value: 8, icon: CheckCircle2, tint: 'bg-emerald-50 text-emerald-600' },
-  { label: 'Prescriptions', value: 3, icon: Pill, tint: 'bg-amber-50 text-amber-600' },
-  { label: 'Medical Records', value: 5, icon: FileText, tint: 'bg-indigo-50 text-indigo-600' },
-]
-
-const appointments = [
-  { doctor: 'Dr. Alain Kamga', specialty: 'Cardiologist', date: 'May 22, 2026', time: '10:00 AM', hospital: 'Harmony Hospital', status: 'Confirmed' },
-  { doctor: 'Dr. Nadia Fouda', specialty: 'Pediatrician', date: 'May 30, 2026', time: '2:00 PM', hospital: 'Life Care Clinic', status: 'Upcoming' },
-]
+import { useEffect, useState } from 'react'
+import api from '../../services/api.js'
 
 export default function Dashboard() {
   const { user } = useAuth()
+  const [appointments, setAppointments] = useState([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const fetchAppointments = async () => {
+      try {
+        const response = await api.get('/appointments/my')
+        setAppointments(response.data?.data || [])
+      } catch {
+        setAppointments([])
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchAppointments()
+  }, [])
+
+  const upcomingCount = appointments.filter((a) => a.status === 'pending' || a.status === 'confirmed').length
+  const completedCount = appointments.filter((a) => a.status === 'completed').length
+
+  const stats = [
+    { label: 'Upcoming Appointments', value: upcomingCount, icon: CalendarDays, tint: 'bg-blue-50 text-blue-600' },
+    { label: 'Completed Appointments', value: completedCount, icon: CheckCircle2, tint: 'bg-emerald-50 text-emerald-600' },
+    { label: 'Prescriptions', value: 0, icon: Pill, tint: 'bg-amber-50 text-amber-600' },
+    { label: 'Medical Records', value: 0, icon: FileText, tint: 'bg-indigo-50 text-indigo-600' },
+  ]
 
   return (
     <div className="mx-auto max-w-[1400px]">
@@ -46,28 +61,39 @@ export default function Dashboard() {
             <h2 className="font-bold">Upcoming Appointments</h2>
             <Link to="/appointments" className="text-sm font-semibold text-emerald-600">View all</Link>
           </div>
-          <div className="space-y-3">
-            {appointments.map((item) => (
-              <div key={item.doctor} className="flex flex-col gap-4 rounded-xl border border-[#E7ECE9] p-4 sm:flex-row sm:items-center sm:justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-11 w-11 items-center justify-center rounded-full bg-emerald-100 text-sm font-bold text-emerald-700">{item.doctor.replace('Dr. ', '').split(' ').map(x => x[0]).join('')}</div>
-                  <div>
-                    <p className="font-semibold">{item.doctor}</p>
-                    <p className="text-sm text-[#6E7B76]">{item.specialty}</p>
-                    <p className="mt-1 text-xs text-[#6E7B76]">{item.date} · {item.time} · {item.hospital}</p>
+          {loading ? (
+            <div className="rounded-xl border border-dashed border-[#C9D4CF] p-6 text-center text-sm text-[#6E7B76]">Loading appointments...</div>
+          ) : appointments.length === 0 ? (
+            <div className="rounded-xl border border-dashed border-[#C9D4CF] p-6 text-center text-sm text-[#6E7B76]">No appointments yet. Book your first appointment to get started.</div>
+          ) : (
+            <div className="space-y-3">
+              {appointments.slice(0, 5).map((item) => (
+                <div key={item.id} className="flex flex-col gap-4 rounded-xl border border-[#E7ECE9] p-4 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-11 w-11 items-center justify-center rounded-full bg-emerald-100 text-sm font-bold text-emerald-700">{(item.doctor?.name || 'Dr').replace('Dr. ', '').split(' ').map(x => x[0]).join('')}</div>
+                    <div>
+                      <p className="font-semibold">{item.doctor?.name || 'Doctor'}</p>
+                      <p className="text-sm text-[#6E7B76]">{item.doctor?.specialty || ''}</p>
+                      <p className="mt-1 text-xs text-[#6E7B76]">{item.appointmentDate} · {item.appointmentTime}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {item.consultationType === 'online' && item.jitsiMeetingUrl && (
+                      <Link to={`/video-consultation/${item.id}`} className="inline-flex items-center gap-1 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700"><Video size={13} /> Join</Link>
+                    )}
+                    <span className="w-fit rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">{item.status}</span>
                   </div>
                 </div>
-                <span className="w-fit rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">{item.status}</span>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
 
         <div className="rounded-2xl border border-[#E7ECE9] bg-white p-5 shadow-sm">
           <h2 className="font-bold">Quick Actions</h2>
           <div className="mt-4 space-y-2">
             <QuickAction to="/find-doctor" icon={Search} label="Find Doctors" />
-            <QuickAction to="/appointments/book/1" icon={CalendarDays} label="Book Appointment" />
+            <QuickAction to="/appointments" icon={CalendarDays} label="My Appointments" />
             <QuickAction to="/medical-records" icon={UploadCloud} label="View Medical Records" />
             <QuickAction to="/payments" icon={CreditCard} label="Make Payment" />
           </div>
@@ -96,3 +122,4 @@ export default function Dashboard() {
 function QuickAction({ to, icon: Icon, label }) {
   return <Link to={to} className="flex items-center gap-3 rounded-xl border border-[#E7ECE9] px-4 py-3 text-sm font-medium hover:border-emerald-200 hover:bg-emerald-50"><Icon size={18} className="text-emerald-600" /><span>{label}</span><ArrowRight size={15} className="ml-auto text-[#98A29D]" /></Link>
 }
+
