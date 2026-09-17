@@ -9,7 +9,7 @@ export default function AdminProtectedRoute() {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
-  if (user?.role !== "system_admin") {
+  if (user?.role !== "SUPER_ADMINISTRATOR") {
     return <Navigate to="/dashboard" state={{ from: location }} replace />;
   }
 

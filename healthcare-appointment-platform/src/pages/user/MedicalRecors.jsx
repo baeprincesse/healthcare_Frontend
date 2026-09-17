@@ -1,4 +1,4 @@
-import { Download, FileText, Pill, UploadCloud, Eye, CalendarDays, User } from 'lucide-react'
+import { Download, FileText, Pill, UploadCloud, Eye, CalendarDays, User, ShieldCheck, ShieldOff, CheckCircle2, XCircle } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import api from '../../services/api.js'
 
@@ -6,9 +6,11 @@ export default function MedicalRecords() {
   const [records, setRecords] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [accessRequests, setAccessRequests] = useState([])
+  const [actionLoading, setActionLoading] = useState({})
 
   useEffect(() => {
-    const fetchRecords = async () => {
+    const fetchAll = async () => {
       try {
         const res = await api.get('/medical-records/patient')
         setRecords(res.data?.records || res.data?.data || [])
@@ -19,8 +21,43 @@ export default function MedicalRecords() {
         setLoading(false)
       }
     }
-    fetchRecords()
+    const fetchAccessRequests = async () => {
+      try {
+        const res = await api.get('/medical-record-access')
+        setAccessRequests(res.data?.accesses || [])
+      } catch {
+        // ignore
+      }
+    }
+    fetchAll()
+    fetchAccessRequests()
   }, [])
+
+  const handleAuthorize = async (doctorId, appointmentId) => {
+    setActionLoading((prev) => ({ ...prev, [doctorId]: 'authorizing' }))
+    try {
+      await api.post(`/medical-record-access/${doctorId}/authorize`, { appointmentId })
+      const res = await api.get('/medical-record-access')
+      setAccessRequests(res.data?.accesses || [])
+    } catch (err) {
+      setError(err.response?.data?.message || 'Unable to authorize doctor.')
+    } finally {
+      setActionLoading((prev) => ({ ...prev, [doctorId]: null }))
+    }
+  }
+
+  const handleRevoke = async (doctorId) => {
+    setActionLoading((prev) => ({ ...prev, [doctorId]: 'revoking' }))
+    try {
+      await api.patch(`/medical-record-access/${doctorId}/revoke`)
+      const res = await api.get('/medical-record-access')
+      setAccessRequests(res.data?.accesses || [])
+    } catch (err) {
+      setError(err.response?.data?.message || 'Unable to revoke access.')
+    } finally {
+      setActionLoading((prev) => ({ ...prev, [doctorId]: null }))
+    }
+  }
 
   const prescriptions = records.filter((r) => r.prescription)
   const visits = records.filter((r) => r.diagnosis || r.treatment)
@@ -37,6 +74,64 @@ export default function MedicalRecords() {
       {error && (
         <div className="mb-4 rounded-lg bg-red-50 px-3 py-2 text-xs text-red-600">{error}</div>
       )}
+
+      {/* Doctor Access Requests */}
+      <div className="mb-6 rounded-2xl border border-[#E7ECE9] bg-white p-5 shadow-sm">
+        <h2 className="flex items-center gap-2 font-bold">
+          <ShieldCheck size={20} className="text-emerald-600" />
+          Doctor Access Requests
+        </h2>
+        <p className="mt-1 text-sm text-[#6E7B76]">
+          Manage which doctors can access your medical records for specific care relationships.
+        </p>
+
+        {accessRequests.length === 0 ? (
+          <p className="mt-4 text-sm text-[#98A29D]">No access requests from doctors.</p>
+        ) : (
+          <div className="mt-4 space-y-3">
+            {accessRequests.map((access) => (
+              <div key={access.id} className="flex items-center justify-between gap-4 rounded-xl border border-[#E7ECE9] bg-[#F5F7F6] p-4">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-100 text-sm font-bold text-emerald-700">
+                    {(access.doctor?.name || 'D').split(' ').map((x) => x[0]).join('')}
+                  </div>
+                  <div>
+                    <p className="font-semibold">{access.doctor?.name || 'Doctor'}</p>
+                    <p className="text-xs text-[#98A29D]">{access.doctor?.specialty || ''} — {access.doctor?.hospital?.name || ''}</p>
+                    {access.appointmentId && (
+                      <p className="text-xs text-[#6E7B76]">Appointment #{access.appointmentId}</p>
+                    )}
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  {access.authorized ? (
+                    <span className="flex items-center gap-1 rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">
+                      <CheckCircle2 size={14} /> Authorized
+                    </span>
+                  ) : (
+                    <>
+                      <button
+                        onClick={() => handleAuthorize(access.doctorId, access.appointmentId)}
+                        disabled={actionLoading[access.doctorId]}
+                        className="flex items-center gap-1 rounded-full bg-emerald-600 px-3 py-1 text-xs font-semibold text-white hover:bg-emerald-700 disabled:opacity-60"
+                      >
+                        <CheckCircle2 size={14} /> {actionLoading[access.doctorId] === 'authorizing' ? 'Authorizing...' : 'Authorize'}
+                      </button>
+                      <button
+                        onClick={() => handleRevoke(access.doctorId)}
+                        disabled={actionLoading[access.doctorId]}
+                        className="flex items-center gap-1 rounded-full border border-red-200 px-3 py-1 text-xs font-semibold text-red-600 hover:bg-red-50 disabled:opacity-60"
+                      >
+                        <ShieldOff size={14} /> Revoke
+                      </button>
+                    </>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
 
       <div className="grid gap-6 xl:grid-cols-[1fr_280px]">
         <div className="overflow-hidden rounded-2xl border border-[#E7ECE9] bg-white shadow-sm">

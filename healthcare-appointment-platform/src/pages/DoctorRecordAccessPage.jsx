@@ -4,17 +4,24 @@ import api from "../services/api.js";
 
 function PatientAccessCard({ patient, onRequestAccess, loading }) {
   const getStatusBadge = () => {
-    if (patient.accessStatus === true) {
+    if (patient.accessStatus === "ACCEPTED") {
       return (
         <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">
           <ShieldCheck size={14} /> Authorized
         </span>
       );
     }
-    if (patient.accessStatus === false) {
+    if (patient.accessStatus === "PENDING") {
       return (
         <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700">
-          <ShieldX size={14} /> Pending Approval
+          <ShieldX size={14} /> Awaiting patient approval
+        </span>
+      );
+    }
+    if (patient.accessStatus === "REJECTED") {
+      return (
+        <span className="inline-flex items-center gap-1 rounded-full bg-red-50 px-3 py-1 text-xs font-semibold text-red-600">
+          <ShieldX size={14} /> Rejected by patient
         </span>
       );
     }
@@ -50,13 +57,26 @@ function PatientAccessCard({ patient, onRequestAccess, loading }) {
         </div>
 
         <div className="flex shrink-0 gap-2">
-          {patient.accessStatus !== true && (
+          {patient.accessStatus === "PENDING" && (
+            <button
+              disabled
+              className="rounded-xl bg-amber-50 px-4 py-2 text-sm font-bold text-amber-700 opacity-80"
+            >
+              Request Sent
+            </button>
+          )}
+
+          {patient.accessStatus !== "PENDING" && patient.accessStatus !== "ACCEPTED" && (
             <button
               disabled={loading === patient.id}
-              onClick={() => onRequestAccess(patient.id)}
+              onClick={() => onRequestAccess(patient.id, patient.appointmentId)}
               className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-bold text-white hover:bg-emerald-700 disabled:opacity-50"
             >
-              {loading === patient.id ? "Requesting..." : "Request Access"}
+              {loading === patient.id
+                ? "Requesting..."
+                : patient.accessStatus === "REJECTED"
+                ? "Request Again"
+                : "Request Access"}
             </button>
           )}
         </div>
@@ -94,14 +114,14 @@ export default function DoctorRecordAccessPage() {
     fetchPatients();
   }, [fetchPatients]);
 
-  const requestAccess = async (patientId) => {
+  const requestAccess = async (patientId, appointmentId) => {
     try {
       setActionLoading(patientId);
       setError("");
       setSuccess("");
 
-      await api.post("/medical-record-access/request", { patientId });
-      setSuccess("Access request sent to patient.");
+      await api.post("/medical-record-access/request", { patientId, appointmentId });
+      setSuccess("Access request sent. The patient must approve it before you can open their records.");
       fetchPatients();
     } catch (err) {
       console.error("Request access error:", err);
@@ -113,9 +133,9 @@ export default function DoctorRecordAccessPage() {
     }
   };
 
-  const authorizedCount = patients.filter((p) => p.accessStatus === true).length;
-  const pendingCount = patients.filter((p) => p.accessStatus === false).length;
-  const noAccessCount = patients.filter((p) => p.accessStatus === null).length;
+  const authorizedCount = patients.filter((p) => p.accessStatus === "ACCEPTED").length;
+  const pendingCount = patients.filter((p) => p.accessStatus === "PENDING").length;
+  const noAccessCount = patients.filter((p) => p.accessStatus === "NONE" || p.accessStatus === "REJECTED").length;
 
   return (
     <div className="space-y-6">

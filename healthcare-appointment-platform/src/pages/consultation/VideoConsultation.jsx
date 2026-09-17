@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { ArrowLeft, Video, FileText, Save, CheckCircle2, XCircle, AlertCircle } from "lucide-react";
 import api from "../../services/api.js";
+import PrescriptionEditor from "../../components/PrescriptionEditor.jsx";
 
 export default function VideoConsultation() {
   const { appointmentId } = useParams();
@@ -16,11 +17,13 @@ export default function VideoConsultation() {
   const [appointment, setAppointment] = useState(null);
   const [userRole, setUserRole] = useState(null);
   const [medicalRecords, setMedicalRecords] = useState([]);
+  const [healthProfile, setHealthProfile] = useState(null);
   const [hasAccess, setHasAccess] = useState(false);
   const [showMedicalForm, setShowMedicalForm] = useState(false);
   const [savingRecord, setSavingRecord] = useState(false);
   const [recordSuccess, setRecordSuccess] = useState("");
   const [recordError, setRecordError] = useState("");
+  const [prescriptionItems, setPrescriptionItems] = useState([]);
 
   const [medicalForm, setMedicalForm] = useState({
     diagnosis: "",
@@ -85,6 +88,7 @@ export default function VideoConsultation() {
             if (!cancelled) {
               setMedicalRecords(accessRes.data?.records || []);
               setHasAccess(accessRes.data?.authorized || false);
+              setHealthProfile(accessRes.data?.healthProfile || null);
             }
           } catch (err) {
             if (!cancelled) {
@@ -227,12 +231,28 @@ export default function VideoConsultation() {
     setRecordSuccess("");
     setRecordError("");
 
+    if (prescriptionItems.some(
+      (item) => !item.medicationName.trim() || !item.dosage.trim() || !item.frequency.trim() || !item.duration.trim()
+    )) {
+      setRecordError("Complete the medication name, dosage, frequency and duration for every medication.");
+      setSavingRecord(false);
+      return;
+    }
+
     try {
-      await api.post("/medical-records", {
+      const response = await api.post("/medical-records", {
         appointmentId: parseInt(appointmentId),
         patientId: appointment.patientId,
         ...medicalForm,
       });
+
+      if (prescriptionItems.length > 0) {
+        await api.post("/prescriptions", {
+          appointmentId: parseInt(appointmentId),
+          medicalRecordId: response.data?.record?.id,
+          items: prescriptionItems,
+        });
+      }
 
       setRecordSuccess("Medical record saved successfully.");
       setShowMedicalForm(false);
@@ -245,6 +265,7 @@ export default function VideoConsultation() {
         doctorNotes: "",
         recommendations: "",
       });
+      setPrescriptionItems([]);
 
       try {
         const accessRes = await api.get(`/medical-records/consultation/${appointmentId}`);
@@ -313,7 +334,7 @@ export default function VideoConsultation() {
         </button>
 
         <div className="flex items-center gap-4">
-          {userRole === "doctor" && appointment?.status === "IN_PROCESS" && (
+          {userRole === "DOCTOR" && appointment?.status === "IN_PROCESS" && (
             <button
               onClick={handleEndConsultation}
               className="inline-flex items-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700"
@@ -385,7 +406,7 @@ export default function VideoConsultation() {
         </div>
 
         <div className="space-y-4">
-          {userRole === "doctor" && appointment?.status === "IN_PROCESS" && (
+          {userRole === "DOCTOR" && appointment?.status === "IN_PROCESS" && (
             <div className="rounded-2xl border border-[#E7ECE9] bg-white p-4 shadow-sm">
               <div className="flex items-center justify-between">
                 <h3 className="font-bold text-gray-900">Medical Records</h3>
@@ -402,6 +423,7 @@ export default function VideoConsultation() {
 
               {hasAccess ? (
                 <>
+                  {healthProfile && <PatientHealthProfile profile={healthProfile} />}
                   <div className="mt-3 max-h-40 overflow-y-auto space-y-2">
                     {medicalRecords.length === 0 ? (
                       <p className="text-xs text-gray-500">No previous records found.</p>
@@ -430,17 +452,18 @@ export default function VideoConsultation() {
               ) : (
                 <div className="mt-3 rounded-lg bg-amber-50 p-3 text-xs text-amber-700">
                   <AlertCircle size={14} className="mr-1 inline" />
-                  Patient has not authorized access to their medical records.
+                  The patient has not authorized access to their medical records for this consultation.
                 </div>
               )}
             </div>
           )}
 
-          {userRole === "patient" && (
+          {userRole === "PATIENT" && (
             <div className="rounded-2xl border border-[#E7ECE9] bg-white p-4 shadow-sm">
               <h3 className="font-bold text-gray-900">Consultation</h3>
               <p className="mt-2 text-xs text-gray-500">
-                You are in a video consultation with Dr. {appointment?.doctor?.name}.
+                You are in a video consultation with Dr. {appointment?.doctor?.name}. To let your doctor view your history and
+                add records, accept their access request.
               </p>
             </div>
           )}
@@ -507,15 +530,7 @@ export default function VideoConsultation() {
                 />
               </label>
 
-              <label className="block text-xs font-medium text-slate-700">
-                Prescription
-                <textarea
-                  value={medicalForm.prescription}
-                  onChange={(e) => setMedicalForm({ ...medicalForm, prescription: e.target.value })}
-                  rows={2}
-                  className="mt-1.5 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs outline-none transition focus:border-emerald-500 focus:bg-white focus:ring-2 focus:ring-emerald-100"
-                />
-              </label>
+              <PrescriptionEditor items={prescriptionItems} setItems={setPrescriptionItems} disabled={savingRecord} />
 
               <label className="block text-xs font-medium text-slate-700">
                 Doctor's Notes
@@ -549,6 +564,18 @@ export default function VideoConsultation() {
           </form>
         </div>
       )}
+    </div>
+  );
+}
+
+function PatientHealthProfile({ profile }) {
+  return (
+    <div className="mt-3 rounded-lg border border-emerald-100 bg-emerald-50/50 p-3 text-xs">
+      <p className="font-bold text-emerald-800">Patient-reported health information</p>
+      <p className="mt-2 text-gray-600">Blood group: {profile.bloodGroup || "Not provided"} · Sex: {profile.sex?.replaceAll("_", " ") || "Not provided"}</p>
+      <p className="mt-2 text-gray-600">Allergies: {profile.allergies || "Not provided"}</p>
+      <p className="mt-1 text-gray-600">Existing conditions: {profile.existingConditions || "Not provided"}</p>
+      <p className="mt-1 text-gray-600">Current medications: {profile.currentMedications || "Not provided"}</p>
     </div>
   );
 }

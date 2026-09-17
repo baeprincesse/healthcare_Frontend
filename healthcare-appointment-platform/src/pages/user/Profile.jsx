@@ -124,7 +124,7 @@ export default function Profile() {
               <span className="font-semibold">
                 Role:
               </span>{' '}
-              {profile?.role ? (profile.role === 'system_admin' ? 'System Administrator' : profile.role === 'hospital_admin' ? 'Hospital Administrator' : profile.role === 'doctor' ? 'Doctor' : profile.role === 'secretary' ? 'Secretary' : profile.role === 'patient' ? 'Patient' : profile.role) : '—'}
+              {profile?.role ? (profile.role === 'SUPER_ADMINISTRATOR' ? 'System Administrator' : profile.role === 'HEAD_ADMINISTRATOR' ? 'Hospital Administrator' : profile.role === 'DOCTOR' ? 'Doctor' : profile.role === 'PATIENT' ? 'Patient' : profile.role) : '—'}
             </div>
 
             {/* <div>

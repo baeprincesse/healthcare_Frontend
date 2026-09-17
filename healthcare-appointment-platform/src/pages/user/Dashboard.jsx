@@ -1,4 +1,4 @@
-import { CalendarDays, CheckCircle2, FileText, Pill, ArrowRight, Search, UploadCloud, Video } from 'lucide-react'
+import { CalendarDays, CheckCircle2, FileText, Pill, ArrowRight, Search, UploadCloud, Video, BellRing, Clock3, Brain, UserRound } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext.jsx'
 import { useEffect, useState } from 'react'
@@ -8,6 +8,7 @@ export default function Dashboard() {
   const { user } = useAuth()
   const [appointments, setAppointments] = useState([])
   const [medicalRecords, setMedicalRecords] = useState([])
+  const [healthProfile, setHealthProfile] = useState(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -19,6 +20,7 @@ export default function Dashboard() {
         ]);
         setAppointments(apptRes.data?.data || [])
         setMedicalRecords(recRes.data?.records || recRes.data?.data || [])
+        setHealthProfile(recRes.data?.healthProfile || null)
       } catch {
         setAppointments([])
         setMedicalRecords([])
@@ -32,6 +34,10 @@ export default function Dashboard() {
   const upcomingCount = appointments.filter(
     (a) => a.status === 'PENDING' || a.status === 'IN_PROCESS'
   ).length
+  const upcomingAppointments = appointments
+    .filter((a) => a.status === 'PENDING' && getAppointmentDate(a) >= new Date())
+    .sort((a, b) => getAppointmentDate(a) - getAppointmentDate(b))
+  const nextAppointment = upcomingAppointments[0]
   const completedCount = appointments.filter(
     (a) => a.status === 'TERMINATED'
   ).length
@@ -66,6 +72,18 @@ export default function Dashboard() {
         ))}
       </section>
 
+      {nextAppointment && (
+        <Link to="/appointments" className="mt-6 flex items-center gap-4 rounded-2xl border border-amber-200 bg-amber-50 p-4 shadow-sm transition hover:border-amber-300 hover:bg-amber-100">
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-amber-100 text-amber-700"><BellRing size={23} /></div>
+          <div className="min-w-0 flex-1">
+            <p className="text-xs font-bold uppercase tracking-wide text-amber-700">Appointment reminder</p>
+            <p className="mt-1 font-bold text-amber-950">{getReminderLabel(nextAppointment)} with {nextAppointment.doctor?.name || 'your doctor'}</p>
+            <p className="mt-1 text-xs text-amber-800">{nextAppointment.appointmentDate} at {nextAppointment.appointmentTime} · Tap to view appointment</p>
+          </div>
+          <Clock3 className="shrink-0 text-amber-700" size={20} />
+        </Link>
+      )}
+
       <section className="mt-6 grid gap-6 xl:grid-cols-[1.6fr_1fr]">
         <div className="rounded-2xl border border-[#E7ECE9] bg-white p-5 shadow-sm">
           <div className="mb-4 flex items-center justify-between">
@@ -74,12 +92,14 @@ export default function Dashboard() {
           </div>
           {loading ? (
             <div className="rounded-xl border border-dashed border-[#C9D4CF] p-6 text-center text-sm text-[#6E7B76]">Loading appointments...</div>
-          ) : appointments.length === 0 ? (
+          ) : upcomingAppointments.length === 0 ? (
             <div className="rounded-xl border border-dashed border-[#C9D4CF] p-6 text-center text-sm text-[#6E7B76]">No appointments yet. Book your first appointment to get started.</div>
           ) : (
             <div className="space-y-3">
-              {appointments.slice(0, 5).map((item) => (
-                <div key={item.id} className="flex flex-col gap-4 rounded-xl border border-[#E7ECE9] p-4 sm:flex-row sm:items-center sm:justify-between">
+              {upcomingAppointments.slice(0, 5).map((item) => (
+                <div key={item.id} className={`rounded-xl border p-4 ${item.status === 'PENDING' && isWithin24Hours(item) ? 'border-amber-300 bg-amber-50/50' : 'border-[#E7ECE9]'}`}>
+                  {item.status === 'PENDING' && isWithin24Hours(item) && <div className="mb-3 flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-amber-700"><BellRing size={14} /> Reminder: coming up soon</div>}
+                  <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                   <div className="flex items-center gap-3">
                     <div className="flex h-11 w-11 items-center justify-center rounded-full bg-emerald-100 text-sm font-bold text-emerald-700">{(item.doctor?.name || 'Dr').replace('Dr. ', '').split(' ').map(x => x[0]).join('')}</div>
                     <div>
@@ -94,6 +114,7 @@ export default function Dashboard() {
                     )}
                     <span className="w-fit rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">{item.status}</span>
                   </div>
+                  </div>
                 </div>
               ))}
             </div>
@@ -107,6 +128,7 @@ export default function Dashboard() {
             <QuickAction to="/appointments" icon={CalendarDays} label="My Appointments" />
             <QuickAction to="/medical-records" icon={UploadCloud} label="View Medical Records" />
             <QuickAction to="/prescriptions" icon={Pill} label="My Prescriptions" />
+            <QuickAction to="/ai-health-assistant" icon={Brain} label="AI Health Assistant" />
           </div>
           <div className="mt-5 rounded-xl bg-emerald-600 p-4 text-white">
             <p className="font-bold">Your Health Matters</p>
@@ -114,6 +136,8 @@ export default function Dashboard() {
           </div>
         </div>
       </section>
+
+      <Link to="/settings" className="mt-6 flex items-center gap-4 rounded-2xl border border-emerald-100 bg-emerald-50 p-5 hover:bg-emerald-100"><div className="flex h-11 w-11 items-center justify-center rounded-xl bg-white text-emerald-700"><UserRound size={20} /></div><div className="flex-1"><p className="font-bold">{healthProfile ? 'Health Profile' : 'Complete Your Health Profile'}</p><p className="mt-1 text-sm text-[#6E7B76]">{healthProfile ? 'View or edit your patient-reported health information.' : 'Adding health information helps healthcare professionals understand your medical history.'}</p></div><span className="text-sm font-semibold text-emerald-700">{healthProfile ? 'View / Edit' : 'Complete'}</span></Link>
 
       <section className="mt-6 rounded-2xl border border-[#E7ECE9] bg-white p-5 shadow-sm">
         <div className="flex items-center justify-between">
@@ -132,4 +156,23 @@ export default function Dashboard() {
 
 function QuickAction({ to, icon: Icon, label }) {
   return <Link to={to} className="flex items-center gap-3 rounded-xl border border-[#E7ECE9] px-4 py-3 text-sm font-medium hover:border-emerald-200 hover:bg-emerald-50"><Icon size={18} className="text-emerald-600" /><span>{label}</span><ArrowRight size={15} className="ml-auto text-[#98A29D]" /></Link>
+}
+
+function getAppointmentDate(appointment) {
+  return new Date(`${appointment.appointmentDate}T${appointment.appointmentTime || '00:00:00'}`)
+}
+
+function isWithin24Hours(appointment) {
+  const difference = getAppointmentDate(appointment).getTime() - Date.now()
+  return difference >= 0 && difference <= 24 * 60 * 60 * 1000
+}
+
+function getReminderLabel(appointment) {
+  const appointmentDate = getAppointmentDate(appointment)
+  const today = new Date()
+  const tomorrow = new Date(today)
+  tomorrow.setDate(today.getDate() + 1)
+  if (appointmentDate.toDateString() === today.toDateString()) return 'Today'
+  if (appointmentDate.toDateString() === tomorrow.toDateString()) return 'Tomorrow'
+  return appointment.appointmentDate
 }

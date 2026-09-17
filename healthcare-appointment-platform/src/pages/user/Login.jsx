@@ -1,15 +1,17 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext.jsx";
 import logo from "../../assets/logo.jpg";
 
 export default function Login() {
   const { login } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const [form, setForm] = useState({ email: "", password: "" });
   const [show, setShow] = useState(false);
   const [error, setError] = useState("");
+  const [notice] = useState(location.state?.message || "");
   const [loading, setLoading] = useState(false);
 
   const handle = (field) => (event) => {
@@ -28,27 +30,22 @@ export default function Login() {
       console.log("LOGIN USER:", data.user);
       console.log("LOGIN ROLE:", role);
 
-      if (role === "system_admin") {
+      if (role === "SUPER_ADMINISTRATOR") {
         navigate("/platform-admin/dashboard", { replace: true });
         return;
       }
 
-      if (role === "hospital_admin") {
+      if (role === "HEAD_ADMINISTRATOR") {
         navigate("/hospital-admin/dashboard", { replace: true });
         return;
       }
 
-      if (role === "doctor") {
+      if (role === "DOCTOR") {
         navigate("/doctor/dashboard", { replace: true });
         return;
       }
 
-      if (role === "secretary") {
-        navigate("/secretary/dashboard", { replace: true });
-        return;
-      }
-
-      if (role === "patient") {
+      if (role === "PATIENT") {
         navigate("/dashboard", { replace: true });
         return;
       }
@@ -92,6 +89,12 @@ export default function Login() {
             {error && (
               <div className="rounded-lg bg-red-50 px-3 py-2 text-xs text-red-600">
                 {error}
+              </div>
+            )}
+
+            {notice && !error && (
+              <div className="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-700">
+                {notice} Your account will be available after System Administrator approval.
               </div>
             )}
 
@@ -139,6 +142,12 @@ export default function Login() {
             Do not have an account?{" "}
             <Link to="/register" className="font-semibold text-emerald-600">
               Sign up
+            </Link>
+          </div>
+
+          <div className="mt-3 text-center">
+            <Link to="/forgot-password" className="text-xs font-semibold text-emerald-600 hover:text-emerald-700">
+              Forgot Password?
             </Link>
           </div>
 

@@ -17,12 +17,14 @@ export default function BookAppointment() {
   const [selectedSlot, setSelectedSlot] = useState(null)
   const [reason, setReason] = useState('')
   const [consultationType, setConsultationType] = useState('ONLINE')
+    const [grantMedicalRecordAccess, setGrantMedicalRecordAccess] = useState(false)
   const [paymentMethod, setPaymentMethod] = useState('MTN_MOMO')
   const [phoneNumber, setPhoneNumber] = useState('')
   const [appointmentId, setAppointmentId] = useState(null)
   const [paymentStep, setPaymentStep] = useState(false)
   const [paymentInitiating, setPaymentInitiating] = useState(false)
   const [paymentError, setPaymentError] = useState('')
+  const [transactionReference, setTransactionReference] = useState('')
   const [booking, setBooking] = useState(false)
   const [slotsLoading, setSlotsLoading] = useState(false)
 
@@ -73,7 +75,18 @@ export default function BookAppointment() {
   }, [selectedDate, doctor])
 
   const confirmBooking = async () => {
-    if (!doctor || !selectedDate || !selectedSlot) return
+    if (!doctor) {
+      setError('Doctor information not available.')
+      return
+    }
+    if (!selectedDate) {
+      setError('Please select a date.')
+      return
+    }
+    if (!selectedSlot) {
+      setError('Please select a time slot.')
+      return
+    }
     setBooking(true)
     setError('')
     try {
@@ -84,9 +97,10 @@ export default function BookAppointment() {
         appointmentTime: selectedSlot.startTime,
         reason,
         consultationType,
+        grantMedicalRecordAccess,
       })
-      const appointment = resp.data?.appointment || resp.data
-      setAppointmentId(appointment?.id || appointment?.data?.id)
+      const appointment = resp.data?.data || resp.data?.appointment || resp.data
+      setAppointmentId(appointment?.id)
       setBooking(false)
       if (consultationType === 'ONLINE') {
         setPaymentStep(true)
@@ -114,8 +128,12 @@ export default function BookAppointment() {
         phoneNumber,
       })
       if (resp.data?.success) {
-        setSuccess(resp.data.payment?.status === 'PAID')
-        if (resp.data.payment?.status !== 'PAID') {
+        const payment = resp.data.payment || {}
+        setTransactionReference(payment.reference || '')
+        if (payment.status === 'COMPLETED') {
+          setSuccess(true)
+          setPaymentStep(false)
+        } else {
           setPaymentError('Payment initiated. Confirm it on your phone, then verify the payment.')
         }
       } else {
@@ -153,14 +171,15 @@ export default function BookAppointment() {
       <div className="mx-auto max-w-2xl py-8">
         <div className="rounded-3xl border border-emerald-100 bg-white p-8 text-center shadow-sm">
           <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-emerald-50 text-emerald-600"><CheckCircle2 size={34} /></div>
-          <h1 className="mt-5 text-2xl font-extrabold">Appointment Confirmed</h1>
-          <p className="mt-2 text-sm text-[#6E7B76]">Your appointment with {doctor?.name} has been saved.</p>
+          <h1 className="mt-5 text-2xl font-extrabold">Payment Successful</h1>
+          <p className="mt-2 text-sm text-[#6E7B76]">Your appointment with {doctor?.name} has been confirmed successfully.</p>
           <div className="mx-auto mt-5 max-w-md rounded-2xl bg-[#F5F7F6] p-5 text-left text-sm">
             <p><strong>Doctor:</strong> {doctor?.name}</p>
             <p className="mt-2"><strong>Date:</strong> {selectedDate}</p>
             <p className="mt-2"><strong>Time:</strong> {selectedSlot?.startTime} - {selectedSlot?.endTime}</p>
             <p className="mt-2"><strong>Type:</strong> {consultationType === 'ONLINE' ? 'Online Consultation' : 'On-site Consultation'}</p>
             <p className="mt-2"><strong>Location:</strong> {doctor?.hospital?.name || 'Hospital'}</p>
+            {transactionReference && <p className="mt-2 break-all"><strong>Transaction ID:</strong> {transactionReference}</p>}
           </div>
           <button onClick={() => navigate('/appointments')} className="mt-6 rounded-xl bg-emerald-600 px-6 py-3 text-sm font-semibold text-white">View My Appointments</button>
         </div>
@@ -252,6 +271,11 @@ export default function BookAppointment() {
 
           <label className="block text-sm font-semibold">Reason for visit <span className="font-normal text-[#98A29D]">(optional)</span><textarea value={reason} onChange={e => setReason(e.target.value)} rows="3" placeholder="Briefly describe your reason for the visit..." className="mt-2 w-full resize-none rounded-xl border border-[#E7ECE9] px-4 py-3 text-sm outline-none focus:border-emerald-500" /></label>
 
+          <label className="mt-5 flex items-start gap-3 rounded-xl border border-emerald-100 bg-emerald-50/60 p-4 text-sm">
+            <input type="checkbox" checked={grantMedicalRecordAccess} onChange={e => setGrantMedicalRecordAccess(e.target.checked)} className="mt-0.5 h-4 w-4 accent-emerald-600" />
+            <span><span className="font-semibold">Allow this doctor to access my medical records for this care relationship.</span><span className="mt-1 block text-xs font-normal text-[#6E7B76]">You can revoke access later from Medical Record Access. The doctor will not need to request permission separately.</span></span>
+          </label>
+
           <div className="mt-5">
             <p className="text-sm font-semibold mb-2">Consultation Type</p>
             <div className="grid grid-cols-2 gap-3">
@@ -266,7 +290,7 @@ export default function BookAppointment() {
             </div>
           </div>
 
-          {consultationType === 'ONLINE' && paymentStep && (
+          {paymentStep && (
             <div className="mt-5 rounded-xl border border-[#E7ECE9] bg-[#F5F7F6] p-4">
               <div className="mb-3 flex items-center justify-between">
                 <p className="text-sm font-semibold">Consultation Fee</p>

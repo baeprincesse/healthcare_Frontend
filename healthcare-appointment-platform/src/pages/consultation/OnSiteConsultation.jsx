@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, FileText, Save, CheckCircle2, XCircle, AlertCircle, MapPin } from "lucide-react";
+import { ArrowLeft, FileText, Save, CheckCircle2, XCircle, AlertCircle, MapPin, Pencil } from "lucide-react";
 import api from "../../services/api.js";
+import PrescriptionEditor from "../../components/PrescriptionEditor.jsx";
 
 export default function OnSiteConsultation() {
   const { appointmentId } = useParams();
@@ -12,11 +13,14 @@ export default function OnSiteConsultation() {
   const [appointment, setAppointment] = useState(null);
   const [userRole, setUserRole] = useState(null);
   const [medicalRecords, setMedicalRecords] = useState([]);
+  const [healthProfile, setHealthProfile] = useState(null);
   const [hasAccess, setHasAccess] = useState(false);
   const [showMedicalForm, setShowMedicalForm] = useState(false);
+  const [editingRecordId, setEditingRecordId] = useState(null);
   const [savingRecord, setSavingRecord] = useState(false);
   const [recordSuccess, setRecordSuccess] = useState("");
   const [recordError, setRecordError] = useState("");
+  const [prescriptionItems, setPrescriptionItems] = useState([]);
 
   const [medicalForm, setMedicalForm] = useState({
     diagnosis: "",
@@ -77,6 +81,7 @@ export default function OnSiteConsultation() {
             if (!cancelled) {
               setMedicalRecords(accessRes.data?.records || []);
               setHasAccess(accessRes.data?.authorized || false);
+              setHealthProfile(accessRes.data?.healthProfile || null);
             }
           } catch (err) {
             if (!cancelled) {
@@ -103,30 +108,80 @@ export default function OnSiteConsultation() {
     };
   }, [appointmentId]);
 
+  const resetMedicalForm = () => {
+    setMedicalForm({
+      diagnosis: "",
+      symptoms: "",
+      observations: "",
+      treatment: "",
+      prescription: "",
+      doctorNotes: "",
+      recommendations: "",
+    });
+    setPrescriptionItems([]);
+    setEditingRecordId(null);
+  };
+
+  const handleEditRecord = (record) => {
+    setEditingRecordId(record.id);
+    setMedicalForm({
+      diagnosis: record.diagnosis || "",
+      symptoms: record.symptoms || "",
+      observations: record.observations || "",
+      treatment: record.treatment || "",
+      prescription: record.prescription || "",
+      doctorNotes: record.doctorNotes || "",
+      recommendations: record.recommendations || "",
+    });
+    setPrescriptionItems([]);
+    setRecordSuccess("");
+    setRecordError("");
+    setShowMedicalForm(true);
+  };
+
   const handleSaveMedicalRecord = async (e) => {
     e.preventDefault();
     setSavingRecord(true);
     setRecordSuccess("");
     setRecordError("");
 
-    try {
-      await api.post("/medical-records", {
-        appointmentId: parseInt(appointmentId),
-        patientId: appointment.patientId,
-        ...medicalForm,
-      });
+    if (prescriptionItems.some(
+      (item) => !item.medicationName.trim() || !item.dosage.trim() || !item.frequency.trim() || !item.duration.trim()
+    )) {
+      setRecordError("Complete the medication name, dosage, frequency and duration for every medication.");
+      setSavingRecord(false);
+      return;
+    }
 
-      setRecordSuccess("Medical record saved successfully.");
+    try {
+      let recordId;
+
+      if (editingRecordId) {
+        const response = await api.put(`/medical-records/${editingRecordId}`, {
+          ...medicalForm,
+        });
+        recordId = response.data?.record?.id || editingRecordId;
+        setRecordSuccess("Medical record updated successfully.");
+      } else {
+        const response = await api.post("/medical-records", {
+          appointmentId: parseInt(appointmentId),
+          patientId: appointment.patientId,
+          ...medicalForm,
+        });
+        recordId = response.data?.record?.id;
+        setRecordSuccess("Medical record saved successfully.");
+      }
+
+      if (prescriptionItems.length > 0) {
+        await api.post("/prescriptions", {
+          appointmentId: parseInt(appointmentId),
+          medicalRecordId: recordId,
+          items: prescriptionItems,
+        });
+      }
+
       setShowMedicalForm(false);
-      setMedicalForm({
-        diagnosis: "",
-        symptoms: "",
-        observations: "",
-        treatment: "",
-        prescription: "",
-        doctorNotes: "",
-        recommendations: "",
-      });
+      resetMedicalForm();
 
       try {
         const accessRes = await api.get(`/medical-records/consultation/${appointmentId}`);
@@ -195,7 +250,7 @@ export default function OnSiteConsultation() {
         </button>
 
         <div className="flex items-center gap-4">
-          {userRole === "doctor" && appointment?.status === "IN_PROCESS" && (
+          {userRole === "DOCTOR" && appointment?.status === "IN_PROCESS" && (
             <button
               onClick={handleEndConsultation}
               className="inline-flex items-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700"
@@ -249,7 +304,7 @@ export default function OnSiteConsultation() {
         </div>
       </div>
 
-      {userRole === "doctor" && appointment?.status === "IN_PROCESS" && (
+      {userRole === "DOCTOR" && appointment?.status === "IN_PROCESS" && (
         <div className="rounded-2xl border border-[#E7ECE9] bg-white p-5 shadow-sm">
           <div className="flex items-center justify-between">
             <h3 className="text-lg font-bold text-gray-900">Patient Medical Records</h3>
@@ -266,25 +321,44 @@ export default function OnSiteConsultation() {
 
           {hasAccess ? (
             <>
+              {healthProfile && <PatientHealthProfile profile={healthProfile} />}
               <div className="mt-4 max-h-48 overflow-y-auto space-y-2">
                 {medicalRecords.length === 0 ? (
                   <p className="text-sm text-gray-500">No previous records found for this patient.</p>
                 ) : (
                   medicalRecords.slice(0, 5).map((record) => (
                     <div key={record.id} className="rounded-lg border border-gray-200 p-3 text-sm">
-                      <p className="font-semibold text-gray-700">
-                        {new Date(record.createdAt).toLocaleDateString()}
-                      </p>
-                      <p className="text-gray-500 truncate">
-                        {record.diagnosis || "No diagnosis recorded"}
-                      </p>
+                      <div className="min-w-0">
+                        <p className="font-semibold text-gray-700">
+                          {new Date(record.createdAt).toLocaleDateString()}
+                        </p>
+                        <p className="text-gray-500 truncate">
+                          {record.diagnosis || "No diagnosis recorded"}
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleEditRecord(record)}
+                        className="shrink-0 rounded-lg border-gray-200 px-3 py-1 text-xs font-semibold text-gray-700 hover:bg-gray-50"
+                      >
+                        <Pencil size={13} className="mr-1 inline" />
+                        Edit
+                      </button>
                     </div>
                   ))
                 )}
               </div>
 
               <button
-                onClick={() => setShowMedicalForm(!showMedicalForm)}
+                onClick={() => {
+                  if (showMedicalForm) {
+                    setShowMedicalForm(false);
+                    resetMedicalForm();
+                  } else {
+                    resetMedicalForm();
+                    setShowMedicalForm(true);
+                  }
+                }}
                 className="mt-4 w-full rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700"
               >
                 <FileText size={16} className="mr-2 inline" />
@@ -300,7 +374,9 @@ export default function OnSiteConsultation() {
 
           {showMedicalForm && hasAccess && (
             <div className="mt-4 border-t border-gray-200 pt-4">
-              <h4 className="font-bold text-gray-900">New Medical Record</h4>
+              <h4 className="font-bold text-gray-900">
+                {editingRecordId ? "Edit Medical Record" : "New Medical Record"}
+              </h4>
 
               {recordSuccess && (
                 <div className="mt-3 flex items-center gap-2 rounded-lg bg-emerald-50 px-3 py-2 text-xs text-emerald-700">
@@ -358,15 +434,7 @@ export default function OnSiteConsultation() {
                     />
                   </label>
 
-                  <label className="block text-xs font-medium text-slate-700">
-                    Prescription
-                    <textarea
-                      value={medicalForm.prescription}
-                      onChange={(e) => setMedicalForm({ ...medicalForm, prescription: e.target.value })}
-                      rows={2}
-                      className="mt-1.5 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs outline-none transition focus:border-emerald-500 focus:bg-white focus:ring-2 focus:ring-emerald-100"
-                    />
-                  </label>
+                  <PrescriptionEditor items={prescriptionItems} setItems={setPrescriptionItems} disabled={savingRecord} />
 
                   <label className="block text-xs font-medium text-slate-700">
                     Doctor's Notes
@@ -395,7 +463,11 @@ export default function OnSiteConsultation() {
                   className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-60"
                 >
                   <Save size={16} />
-                  {savingRecord ? "Saving..." : "Save Medical Record"}
+                  {savingRecord
+                    ? "Saving..."
+                    : editingRecordId
+                    ? "Update Medical Record"
+                    : "Save Medical Record"}
                 </button>
               </form>
             </div>
@@ -403,14 +475,14 @@ export default function OnSiteConsultation() {
         </div>
       )}
 
-      {userRole === "patient" && (
+      {userRole === "PATIENT" && (
         <div className="rounded-2xl border border-[#E7ECE9] bg-white p-5 shadow-sm">
           <h3 className="text-lg font-bold text-gray-900">Your Consultation</h3>
           <p className="mt-2 text-sm text-gray-500">
             You are in an on-site consultation with Dr. {appointment?.doctor?.name}.
           </p>
           <p className="mt-2 text-sm text-gray-500">
-            If you haven't already, please grant the doctor access to your medical records so they can view your history and add new records.
+            To let your doctor view your history and add records during this consultation, accept their access request.
           </p>
           <button
             onClick={() => navigate("/medical-record-access")}
@@ -420,6 +492,18 @@ export default function OnSiteConsultation() {
           </button>
         </div>
       )}
+    </div>
+  );
+}
+
+function PatientHealthProfile({ profile }) {
+  return (
+    <div className="mt-3 rounded-lg border border-emerald-100 bg-emerald-50/50 p-3 text-xs">
+      <p className="font-bold text-emerald-800">Patient-reported health information</p>
+      <p className="mt-2 text-gray-600">Blood group: {profile.bloodGroup || "Not provided"} · Sex: {profile.sex?.replaceAll("_", " ") || "Not provided"}</p>
+      <p className="mt-2 text-gray-600">Allergies: {profile.allergies || "Not provided"}</p>
+      <p className="mt-1 text-gray-600">Existing conditions: {profile.existingConditions || "Not provided"}</p>
+      <p className="mt-1 text-gray-600">Current medications: {profile.currentMedications || "Not provided"}</p>
     </div>
   );
 }

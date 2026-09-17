@@ -13,14 +13,17 @@ export default function Prescription() {
   const [search, setSearch] = useState("");
   const [records, setRecords] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [downloadingId, setDownloadingId] = useState(null);
 
   useEffect(() => {
     const fetch = async () => {
       try {
         const res = await api.get("/medical-records/patient");
         const all = res.data?.records || res.data?.data || [];
-        setRecords(all.filter((r) => r.prescription));
-      } catch {
+        setRecords(all.filter((r) => r.structuredPrescription?.items?.length || r.prescription));
+      } catch (err) {
+        setError(err.response?.data?.message || "Unable to load your prescriptions.");
         setRecords([]);
       } finally {
         setLoading(false);
@@ -29,9 +32,36 @@ export default function Prescription() {
     fetch();
   }, []);
 
-  const filtered = records.filter((r) =>
-    (r.prescription || "").toLowerCase().includes(search.toLowerCase())
-  );
+  const filtered = records.filter((r) => {
+    const items = r.structuredPrescription?.items || [];
+    const searchable = [
+      r.prescription,
+      r.diagnosis,
+      r.doctor?.name,
+      ...items.map((item) => `${item.medicationName} ${item.dosage} ${item.frequency}`),
+    ].filter(Boolean).join(" ").toLowerCase();
+    return searchable.includes(search.toLowerCase());
+  });
+
+  const downloadPrescription = async (prescription) => {
+    try {
+      setDownloadingId(prescription.id);
+      setError("");
+      const response = await api.get(`/prescriptions/${prescription.id}/download`, { responseType: "blob" });
+      const url = URL.createObjectURL(response.data);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `Medical_Prescription_${prescription.id}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      setError(err.response?.data?.message || "Unable to download this prescription.");
+    } finally {
+      setDownloadingId(null);
+    }
+  };
 
   const lastDate = records[0]?.appointment?.appointmentDate
     || (records[0] ? new Date(records[0].createdAt).toLocaleDateString() : "—");
@@ -57,6 +87,10 @@ export default function Prescription() {
           />
         </div>
       </div>
+
+      {error && (
+        <div className="mb-4 rounded-lg bg-red-50 px-3 py-2 text-xs text-red-600">{error}</div>
+      )}
 
       <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
         <div className="rounded-xl bg-white p-4 shadow-sm">
@@ -102,13 +136,25 @@ export default function Prescription() {
         ) : (
           filtered.map((r) => (
             <div key={r.id} className="rounded-xl bg-white p-5 shadow-sm transition hover:shadow-md">
+              {(() => {
+                const prescription = r.structuredPrescription;
+                const items = prescription?.items || [];
+                return (
+                  <>
               <div className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
                 <div className="flex gap-4">
                   <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600">
                     <Pill size={23} />
                   </div>
                   <div>
-                    <h2 className="font-semibold text-slate-900">{r.prescription}</h2>
+                    <h2 className="font-semibold text-slate-900">Prescription #{prescription?.id || r.id}</h2>
+                    {items.length > 0 ? (
+                      <p className="mt-1 text-sm text-slate-500">
+                        {items.map((item) => item.medicationName).join(", ")}
+                      </p>
+                    ) : (
+                      <p className="mt-1 text-sm text-slate-500">{r.prescription}</p>
+                    )}
                     {r.diagnosis && (
                       <p className="mt-1 text-sm text-slate-500">Diagnosis: {r.diagnosis}</p>
                     )}
@@ -131,7 +177,40 @@ export default function Prescription() {
                     {r.appointment?.appointmentDate || new Date(r.createdAt).toLocaleDateString()}
                   </div>
                 </div>
+                {items.length > 0 && (
+                  <div className="mt-4 overflow-x-auto">
+                    <table className="w-full min-w-[620px] text-left text-xs">
+                      <thead className="text-[10px] uppercase tracking-wide text-slate-400">
+                        <tr><th className="pb-2 pr-3">Medication</th><th className="pb-2 pr-3">Dosage</th><th className="pb-2 pr-3">Route</th><th className="pb-2 pr-3">Frequency</th><th className="pb-2">Duration</th></tr>
+                      </thead>
+                      <tbody className="text-slate-600">
+                        {items.map((item) => (
+                          <tr key={item.id} className="border-t border-slate-100">
+                            <td className="py-2 pr-3 font-semibold text-slate-800">{item.medicationName}</td>
+                            <td className="py-2 pr-3">{item.dosage}</td>
+                            <td className="py-2 pr-3">{item.route || "—"}</td>
+                            <td className="py-2 pr-3">{item.frequency}</td>
+                            <td className="py-2">{item.duration}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+                {prescription && (
+                  <button
+                    onClick={() => downloadPrescription(prescription)}
+                    disabled={downloadingId === prescription.id}
+                    className="mt-4 inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-xs font-semibold text-white hover:bg-emerald-700 disabled:opacity-60"
+                  >
+                    <Download size={15} />
+                    {downloadingId === prescription.id ? "Preparing..." : "Download Prescription PDF"}
+                  </button>
+                )}
               </div>
+                  </>
+                );
+              })()}
             </div>
           ))
         )}

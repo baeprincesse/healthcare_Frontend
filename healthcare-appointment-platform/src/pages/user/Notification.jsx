@@ -5,23 +5,36 @@ import {
   FileText,
   Pill,
   CreditCard,
+  ShieldCheck,
   Trash2,
   Video,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import api from "../../services/api.js";
+import { useAuth } from "../../context/AuthContext.jsx";
 import { useSocket } from "../../context/SocketContext.jsx";
 
+const BASE_PATH = "/fronted/healthcare-appointment-platform";
+
 export default function Notifications() {
+  const { user } = useAuth();
   const { notifications, unreadCount, markAsRead, markAllRead } = useSocket();
   const [serverNotifications, setServerNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
+
+  const accessRequestsPath =
+    user?.role === "DOCTOR" && localStorage.getItem("activeMode") !== "patient"
+      ? `${BASE_PATH}/doctor/record-access`
+      : `${BASE_PATH}/medical-record-access`;
 
   useEffect(() => {
     const fetchNotifications = async () => {
       try {
         const response = await api.get("/notifications");
         setServerNotifications(response.data?.data || []);
+        await api.patch("/notifications/read-all");
+        markAllRead();
+        setServerNotifications((prev) => prev.map((notification) => ({ ...notification, isRead: true })));
       } catch {
         // ignore
       } finally {
@@ -29,7 +42,7 @@ export default function Notifications() {
       }
     };
     fetchNotifications();
-  }, []);
+  }, [markAllRead]);
 
   const allNotifications = [
     ...notifications.filter((n) => n.live),
@@ -79,7 +92,7 @@ export default function Notifications() {
     }
   };
 
-  const displayUnread = allNotifications.filter((n) => !n.isRead).length;
+  const displayUnread = unreadCount;
 
   return (
     <div className="min-h-screen bg-slate-50 p-4 md:p-6">
@@ -180,6 +193,14 @@ export default function Notifications() {
                         <Video size={13} /> Join Video Consultation
                       </button>
                     )}
+                  {notification.type === "record" && (
+                    <button
+                      onClick={() => (window.location.href = accessRequestsPath)}
+                      className="mt-2 inline-flex items-center gap-1 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700"
+                    >
+                      <ShieldCheck size={13} /> Review Access Requests
+                    </button>
+                  )}
                 </div>
 
                 {!notification.isRead && (

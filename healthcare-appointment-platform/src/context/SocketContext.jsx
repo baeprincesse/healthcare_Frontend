@@ -43,6 +43,14 @@ export function SocketProvider({ children }) {
       setUnreadCount(initialNotifications.length);
     });
 
+    newSocket.on("notification:new", (notification) => {
+      setNotifications((prev) => {
+        if (prev.some((item) => item.id === notification.id)) return prev;
+        return [notification, ...prev];
+      });
+      if (!notification.isRead) setUnreadCount((count) => count + 1);
+    });
+
     newSocket.on("consultation:started", (data) => {
       setLiveNotification(data);
       setNotifications((prev) => [
@@ -100,10 +108,12 @@ export function SocketProvider({ children }) {
   }, []);
 
   const markAsRead = useCallback((notificationId) => {
-    setNotifications((prev) =>
-      prev.map((n) => (n.id === notificationId ? { ...n, isRead: true } : n))
-    );
-    setUnreadCount((c) => Math.max(0, c - 1));
+    setNotifications((prev) => {
+      const notification = prev.find((item) => item.id === notificationId);
+      if (!notification || notification.isRead) return prev;
+      setUnreadCount((count) => Math.max(0, count - 1));
+      return prev.map((n) => (n.id === notificationId ? { ...n, isRead: true } : n));
+    });
   }, []);
 
   const markAllRead = useCallback(() => {

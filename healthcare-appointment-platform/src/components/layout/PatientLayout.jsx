@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import {
   Bell,
@@ -9,10 +10,13 @@ import {
   Pill,
   Search,
   Settings,
+  ShieldCheck,
   UserRound,
-  Hospital,
+  Brain,
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext.jsx";
+import { useSocket } from "../../context/SocketContext.jsx";
+import api from "../../services/api.js";
 import logo from "../../assets/logo.jpg";
 
 const primaryLinks = [
@@ -20,10 +24,11 @@ const primaryLinks = [
   { to: "/find-doctor", label: "Find Doctors", icon: Search },
   { to: "/appointments", label: "My Appointments", icon: CalendarDays },
   { to: "/medical-records", label: "Medical Records", icon: FileText },
+  { to: "/medical-record-access", label: "Record Access Requests", icon: ShieldCheck },
   { to: "/prescriptions", label: "Prescriptions", icon: Pill },
   { to: "/payments", label: "Payments", icon: CreditCard },
-  { to: "/notifications", label: "Notifications", icon: Bell, badge: 3 },
-  { to: "/create", label: "Create Hospital", icon: Hospital },
+  { to: "/notifications", label: "Notifications", icon: Bell },
+  { to: "/ai-health-assistant", label: "AI Health Assistant", icon: Brain },
 ];
 
 const secondaryLinks = [
@@ -33,11 +38,46 @@ const secondaryLinks = [
 
 export default function PatientLayout() {
   const { user, logout } = useAuth();
+  const { unreadCount, socket } = useSocket();
   const navigate = useNavigate();
+  const [pendingAccessCount, setPendingAccessCount] = useState(0);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadPendingAccessCount = async () => {
+      try {
+        const response = await api.get("/medical-record-access/requests/pending-count");
+        if (!cancelled) setPendingAccessCount(response.data?.count || 0);
+      } catch {
+        if (!cancelled) setPendingAccessCount(0);
+      }
+    };
+
+    loadPendingAccessCount();
+
+    if (socket) {
+      socket.on("medical_record_access:requested", loadPendingAccessCount);
+      socket.on("medical_record_access:updated", loadPendingAccessCount);
+    }
+
+    return () => {
+      cancelled = true;
+      if (socket) {
+        socket.off("medical_record_access:requested", loadPendingAccessCount);
+        socket.off("medical_record_access:updated", loadPendingAccessCount);
+      }
+    };
+  }, [socket]);
 
   const handleLogout = () => {
     logout();
     navigate("/login", { replace: true });
+  };
+
+  const switchToDoctorMode = () => {
+    localStorage.setItem("activeMode", "doctor");
+    navigate("/doctor/dashboard");
   };
 
   const linkClass = ({ isActive }) =>
@@ -51,21 +91,33 @@ export default function PatientLayout() {
     <div className="min-h-screen bg-[#F5F7F6] text-[#152420]">
       <aside className="fixed inset-y-0 left-0 z-30 hidden w-[250px] flex-col bg-[#0C3A31] lg:flex">
         <div className="flex h-[76px] items-center px-5">
-          <img
-            src={logo}
-            alt="MediCare"
-            className="h-12 w-auto max-w-[190px] object-contain"
-          />
+          <div className="flex items-center gap-3">
+            <img
+              src={logo}
+              alt="MediCare"
+              className="h-10 w-10 shrink-0 rounded-xl bg-white/10 object-contain p-1.5"
+            />
+            <div className="min-w-0">
+              <h1 className="truncate text-lg font-extrabold tracking-tight text-white">
+                MediCare
+              </h1>
+            </div>
+          </div>
         </div>
 
         <nav className="flex-1 space-y-1 overflow-y-auto px-4 py-3">
-          {primaryLinks.map(({ to, label, icon: Icon, badge }) => (
+          {primaryLinks.map(({ to, label, icon: Icon }) => (
             <NavLink key={to} to={to} className={linkClass}>
               <Icon size={18} strokeWidth={2} />
               <span className="flex-1">{label}</span>
-              {badge && (
+              {to === "/notifications" && unreadCount > 0 && (
                 <span className="rounded-full bg-red-500 px-1.5 py-0.5 text-[10px] font-bold text-white">
-                  {badge}
+                  {unreadCount}
+                </span>
+              )}
+              {to === "/medical-record-access" && pendingAccessCount > 0 && (
+                <span className="rounded-full bg-red-500 px-1.5 py-0.5 text-[10px] font-bold text-white">
+                  {pendingAccessCount}
                 </span>
               )}
             </NavLink>
@@ -73,6 +125,12 @@ export default function PatientLayout() {
         </nav>
 
         <div className="border-t border-white/10 px-4 py-4">
+          {user?.role === "DOCTOR" && (
+            <button onClick={switchToDoctorMode} className={linkClass({ isActive: false })}>
+              <UserRound size={18} />
+              <span>Doctor Mode</span>
+            </button>
+          )}
           {secondaryLinks.map(({ to, label, icon: Icon }) => (
             <NavLink key={to} to={to} className={linkClass}>
               <Icon size={18} strokeWidth={2} />
@@ -94,12 +152,17 @@ export default function PatientLayout() {
         <header className="sticky top-0 z-20 border-b border-[#E7ECE9] bg-white/95 backdrop-blur">
           <div className="flex h-[76px] items-center justify-between px-5 sm:px-8">
             <div className="flex items-center lg:hidden">
+            <div className="flex items-center gap-2">
               <img
                 src={logo}
                 alt="MediCare"
-                className="h-10 w-auto max-w-[160px] object-contain"
+                className="h-8 w-8 shrink-0 rounded-lg object-contain"
               />
+              <span className="text-base font-extrabold tracking-tight text-[#152420]">
+                MediCare
+              </span>
             </div>
+          </div>
 
             <div className="hidden lg:block" />
 
@@ -110,9 +173,11 @@ export default function PatientLayout() {
                 aria-label="Notifications"
               >
                 <Bell size={18} />
-                <span className="absolute -right-1 -top-1 rounded-full bg-red-500 px-1.5 py-0.5 text-[9px] font-bold text-white">
-                  3
-                </span>
+                {unreadCount > 0 && (
+                  <span className="absolute -right-1 -top-1 rounded-full bg-red-500 px-1.5 py-0.5 text-[9px] font-bold text-white">
+                    {unreadCount}
+                  </span>
+                )}
               </button>
 
               <button

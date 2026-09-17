@@ -61,6 +61,7 @@ export default function DoctorAppointmentsPage() {
   const getStatusLabel = (status) => {
     switch (status) {
       case "PENDING": return "Pending";
+      case "CONFIRMED": return "Confirmed";
       case "IN_PROCESS": return "In Process";
       case "TERMINATED": return "Terminated";
       default: return status;
@@ -70,13 +71,14 @@ export default function DoctorAppointmentsPage() {
   const getStatusColor = (status) => {
     switch (status) {
       case "PENDING": return "bg-amber-50 text-amber-700";
+      case "CONFIRMED": return "bg-emerald-50 text-emerald-700";
       case "IN_PROCESS": return "bg-blue-50 text-blue-700";
       case "TERMINATED": return "bg-gray-100 text-gray-600";
       default: return "bg-emerald-50 text-emerald-700";
     }
   };
 
-  const pendingCount = appointments.filter((a) => a.status === "PENDING").length;
+  const pendingCount = appointments.filter((a) => a.status === "PENDING" || a.status === "CONFIRMED").length;
   const inProcessCount = appointments.filter((a) => a.status === "IN_PROCESS").length;
   const terminatedCount = appointments.filter((a) => a.status === "TERMINATED").length;
 
@@ -154,7 +156,7 @@ export default function DoctorAppointmentsPage() {
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
-                      {a.status === "PENDING" && (
+                      {(a.status === "PENDING" || a.status === "CONFIRMED") && (
                         <button
                           onClick={() => handleStartConsultation(a.id, a.consultationType)}
                           disabled={startingId === a.id}

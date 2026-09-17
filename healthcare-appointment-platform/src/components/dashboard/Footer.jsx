@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import logo from '/src/assets/logo.jpg'
+import logo from '../../assets/logo.jpg'
 
 export default function Footer(){
   return (
@@ -7,13 +7,17 @@ export default function Footer(){
       <div className="max-w-7xl mx-auto px-6 py-12 grid gap-6 sm:grid-cols-3">
         <div>
           <div className="flex items-center gap-3">
-            <div className="bg-green-600 rounded p-2"
-               > <img
-                               src={logo}
-                               alt="MediCare logo"
-                               className="w-6 h-6 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                             /></div>
-            <div className="font-semibold">MediConnect</div>
+            <div className="overflow-hidden rounded-xl bg-emerald-600 p-1.5">
+              <img
+                src={logo}
+                alt="MediCare logo"
+                className="h-8 w-8 object-contain"
+              />
+            </div>
+            <div>
+              <div className="text-lg font-extrabold tracking-tight text-[#152420]">MediCare</div>
+              <div className="text-[10px] font-semibold uppercase tracking-wider text-emerald-600">Healthcare Platform</div>
+            </div>
           </div>
           <p className="mt-3 text-sm text-slate-600">Connecting people with better healthcare.</p>
         </div>
@@ -39,7 +43,7 @@ export default function Footer(){
       </div>
 
       <div className="border-t border-gray-100">
-        <div className="max-w-7xl mx-auto px-6 py-4 text-sm text-slate-600">© 2026 MediConnect. All rights reserved.</div>
+        <div className="max-w-7xl mx-auto px-6 py-4 text-sm text-slate-600">© 2026 MediCare. All rights reserved.</div>
       </div>
     </footer>
   )

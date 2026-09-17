@@ -13,6 +13,7 @@ import LandingPage from "./pages/user/LandingPage.jsx";
 import Login from "./pages/user/Login.jsx";
 import Register from "./pages/user/Register.jsx";
 import ForgotPasswordPage from "./pages/user/ForgotPasswordPage.jsx";
+import ResetPassword from "./pages/user/ResetPassword.jsx";
 import Dashboard from "./pages/user/Dashboard.jsx";
 import FindDoctor from "./pages/user/FindDoctor.jsx";
 import BookAppointment from "./pages/user/BookAppointment.jsx";
@@ -30,11 +31,14 @@ import HospitalDetails from "./pages/user/HospitalDetails.jsx";
 import Prescription from "./pages/user/UserPrescription.jsx";
 import Payment from "./pages/user/Payment.jsx";
 import Notifications from "./pages/user/Notification.jsx";
+import AiHealthAssistant from "./pages/user/AiHealthAssistant.jsx";
+import DoctorProfile from "./pages/user/DoctorProfile.jsx";
+import Settings from "./pages/user/Settings.jsx";
 import CreateHospital from "./pages/hospital/CreateHospital.jsx";
 
 import PlatformAdminDashboard from "./pages/PlatformAdminDashboard.jsx";
 import SystemAdminSimplePage from "./pages/systemadmin/SystemAdminSimplePage.jsx";
-import { DoctorDashboard, SecretaryDashboard } from "./pages/role/RoleDashboards.jsx";
+import { DoctorDashboard } from "./pages/role/RoleDashboards.jsx";
 import { HospitalAdminDashboard } from "./pages/hospital/HospitalAdminDashboard.jsx";
 import HospitalStaff from "./pages/hospital/HospitalStaff.jsx";
 import HospitalAppointments from "./pages/hospital/HospitalAppointments.jsx";
@@ -53,7 +57,9 @@ export default function App() {
             <Route path="/" element={<LandingPage />} />
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
+            <Route path="/forgot-password" element={<ForgotPasswordPage />} />
             <Route path="/forgotpassword" element={<ForgotPasswordPage />} />
+            <Route path="/reset-password/:token" element={<ResetPassword />} />
 
           {/* Authenticated patient */}
           <Route element={<ProtectedRoute />}>
@@ -62,13 +68,17 @@ export default function App() {
               <Route path="/find-doctor" element={<FindDoctor />} />
               <Route path="/appointments" element={<Appointments />} />
               <Route path="/appointments/book/:doctorId" element={<BookAppointment />} />
+              <Route path="/doctors/:doctorId" element={<DoctorProfile />} />
               <Route path="/medical-records" element={<PatientMedicalRecordsPage />} />
               <Route path="/medical-record-access" element={<MedicalRecordAccessPage />} />
+              <Route path="/medical-record-access-requests" element={<MedicalRecordAccessPage />} />
               <Route path="/prescriptions" element={<Prescription />} />
               <Route path="/payments" element={<Payment />} />
               <Route path="/notifications" element={<Notifications />} />
+              <Route path="/ai-health-assistant" element={<AiHealthAssistant />} />
               <Route path="/create" element={<CreateHospital />} />
               <Route path="/profile" element={<Profile />} />
+              <Route path="/settings" element={<Settings />} />
             </Route>
 
             <Route path="/hospitals/:id" element={<HospitalDetails />} />
@@ -112,7 +122,7 @@ export default function App() {
           </Route>
 
           {/* Hospital administrator */}
-          <Route element={<RoleProtectedRoute roles={["hospital_admin"]} />}>
+          <Route element={<RoleProtectedRoute roles={["HEAD_ADMINISTRATOR"]} />}>
             <Route element={<RoleLayout role="Hospital Administrator" title="Hospital Administration" links={[
               { to: "/hospital-admin/dashboard", label: "Dashboard", icon: Home },
               { to: "/hospital-admin/staff", label: "Staff", icon: Users },
@@ -125,7 +135,7 @@ export default function App() {
           </Route>
 
           {/* Doctor */}
-          <Route element={<RoleProtectedRoute roles={["doctor"]} />}>
+          <Route element={<RoleProtectedRoute roles={["DOCTOR"]} />}>
             <Route element={<RoleLayout role="Doctor" title="Doctor Portal" links={[
               { to: "/doctor/dashboard", label: "Dashboard", icon: Home },
               { to: "/doctor/appointments", label: "Appointments", icon: CalendarDays },
@@ -138,19 +148,6 @@ export default function App() {
               <Route path="/doctor/patients" element={<DoctorPatientsPage />} />
               <Route path="/doctor/medical-records" element={<DoctorMedicalRecordsPage />} />
               <Route path="/doctor/record-access" element={<DoctorRecordAccessPage />} />
-            </Route>
-          </Route>
-
-          {/* Secretary */}
-          <Route element={<RoleProtectedRoute roles={["secretary"]} />}>
-            <Route element={<RoleLayout role="Secretary" title="Secretary Portal" links={[
-              { to: "/secretary/dashboard", label: "Dashboard", icon: Home },
-              { to: "/secretary/appointments", label: "Appointments", icon: CalendarDays },
-              { to: "/secretary/patients", label: "Patients", icon: Users },
-            ]} />}>
-              <Route path="/secretary/dashboard" element={<SecretaryDashboard />} />
-              <Route path="/secretary/appointments" element={<SimpleRolePage title="Secretary Appointments" />} />
-              <Route path="/secretary/patients" element={<SimpleRolePage title="Secretary Patients" />} />
             </Route>
           </Route>
 

@@ -23,6 +23,9 @@ const formatPaymentMethod = (method) => {
   return method || "Payment method unavailable";
 };
 
+const isSuccessfulPayment = (status) =>
+  status === "SUCCESS" || status === "COMPLETED";
+
 export default function Payment() {
   const [payments, setPayments] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -48,7 +51,7 @@ export default function Payment() {
   }, []);
 
   const totalPaid = payments
-    .filter((payment) => payment.status === "SUCCESS")
+    .filter((payment) => isSuccessfulPayment(payment.status))
     .reduce((total, payment) => total + (Number(payment.amount) || 0), 0);
   const pendingCount = payments.filter((payment) => payment.status === "PENDING").length;
 
@@ -258,7 +261,7 @@ export default function Payment() {
                   </div>
 
                   <div>
-                    {payment.status === "SUCCESS" ? (
+                    {isSuccessfulPayment(payment.status) ? (
                       <span className="flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1.5 text-[10px] font-semibold text-emerald-600">
                         <CheckCircle2 size={12} />
                         Paid

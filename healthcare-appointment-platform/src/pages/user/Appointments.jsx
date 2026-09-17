@@ -1,4 +1,4 @@
-import { CalendarDays, Clock3, MapPin, Search, Video, Loader2, FileText } from 'lucide-react'
+import { CalendarDays, Clock3, MapPin, Search, Video, Loader2, FileText, BellRing } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import api from '../../services/api.js'
@@ -47,21 +47,36 @@ export default function Appointments() {
 
   const getStatusLabel = (status) => {
     switch (status) {
+      case 'DRAFT': return 'Draft'
       case 'PENDING': return 'Pending'
+      case 'DISAPPROVED': return 'Disapproved'
+      case 'CONFIRMED': return 'Confirmed'
+      case 'RESCHEDULED': return 'Rescheduled'
+      case 'REASSIGN': return 'Reassign'
       case 'IN_PROCESS': return 'In Process'
       case 'TERMINATED': return 'Terminated'
+      case 'NO_SHOW': return 'No Show'
       default: return status
     }
   }
 
   const getStatusColor = (status) => {
     switch (status) {
+      case 'DRAFT': return 'bg-slate-100 text-slate-600'
       case 'PENDING': return 'bg-amber-50 text-amber-700'
+      case 'DISAPPROVED': return 'bg-red-50 text-red-700'
+      case 'CONFIRMED': return 'bg-emerald-50 text-emerald-700'
+      case 'RESCHEDULED': return 'bg-purple-50 text-purple-700'
+      case 'REASSIGN': return 'bg-indigo-50 text-indigo-700'
       case 'IN_PROCESS': return 'bg-blue-50 text-blue-700'
       case 'TERMINATED': return 'bg-gray-100 text-gray-600'
+      case 'NO_SHOW': return 'bg-red-50 text-red-700'
       default: return 'bg-emerald-50 text-emerald-700'
     }
   }
+
+  const upcomingItems = items.filter((item) => item.status === 'PENDING' && getAppointmentDate(item) >= new Date())
+  const nextAppointment = [...upcomingItems].sort((a, b) => getAppointmentDate(a) - getAppointmentDate(b))[0]
 
   return (
     <div className="mx-auto max-w-[1100px]">
@@ -85,6 +100,17 @@ export default function Appointments() {
         </div>
       )}
 
+      {nextAppointment && (
+        <div className="mb-5 flex items-center gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 shadow-sm">
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-amber-100 text-amber-700"><BellRing size={21} /></div>
+          <div>
+            <p className="text-xs font-bold uppercase tracking-wide text-amber-700">Your next appointment</p>
+            <p className="mt-1 text-sm font-bold text-amber-950">{getReminderLabel(nextAppointment)} at {nextAppointment.appointmentTime} with {nextAppointment.doctor?.name || 'your doctor'}</p>
+            <p className="mt-1 text-xs text-amber-800">Please keep this time available for your consultation.</p>
+          </div>
+        </div>
+      )}
+
       {loading && <div className="rounded-2xl border border-dashed border-[#C9D4CF] bg-white p-10 text-center text-sm text-[#6E7B76]">Loading appointments...</div>}
 
       {error && <div className="rounded-2xl border border-red-200 bg-red-50 p-10 text-center text-sm text-red-600">{error}</div>}
@@ -94,7 +120,8 @@ export default function Appointments() {
       )}
 
       <div className="space-y-3">{items.map(item => (
-        <div key={item.id} className="rounded-2xl border border-[#E7ECE9] bg-white p-5 shadow-sm">
+        <div key={item.id} className={`rounded-2xl border p-5 shadow-sm ${item.status === 'PENDING' && isWithin24Hours(item) ? 'border-amber-300 bg-amber-50/50' : 'border-[#E7ECE9] bg-white'}`}>
+          {item.status === 'PENDING' && isWithin24Hours(item) && <div className="mb-3 flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-amber-700"><BellRing size={14} /> Reminder: appointment is within 24 hours</div>}
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <h2 className="font-bold">{item.doctor?.name || 'Doctor'}</h2>
@@ -134,3 +161,22 @@ export default function Appointments() {
     </div>
   )
 }
+
+    function getAppointmentDate(appointment) {
+      return new Date(`${appointment.appointmentDate}T${appointment.appointmentTime || '00:00:00'}`)
+    }
+
+    function isWithin24Hours(appointment) {
+      const difference = getAppointmentDate(appointment).getTime() - Date.now()
+      return difference >= 0 && difference <= 24 * 60 * 60 * 1000
+    }
+
+    function getReminderLabel(appointment) {
+      const appointmentDate = getAppointmentDate(appointment)
+      const today = new Date()
+      const tomorrow = new Date(today)
+      tomorrow.setDate(today.getDate() + 1)
+      if (appointmentDate.toDateString() === today.toDateString()) return 'Today'
+      if (appointmentDate.toDateString() === tomorrow.toDateString()) return 'Tomorrow'
+      return appointment.appointmentDate
+    }

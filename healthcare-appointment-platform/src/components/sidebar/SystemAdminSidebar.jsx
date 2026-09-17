@@ -11,6 +11,7 @@ import {
   Users,
 } from "lucide-react";
 import { useAuth } from "../../context/AuthContext.jsx";
+import logo from "../../assets/logo.jpg";
 
 const menuItems = [
   {
@@ -23,6 +24,11 @@ const menuItems = [
     label: "Hospital Requests",
     icon: ClipboardCheck,
   },
+  // {
+  //   to: "/platform-admin/pending-doctors",
+  //   label: "Doctor Approvals",
+  //   icon: ShieldCheck,
+  // },
   {
     to: "/platform-admin/pending-doctors",
     label: "Doctor Approvals",
@@ -33,11 +39,11 @@ const menuItems = [
     label: "Hospitals",
     icon: Building2,
   },
-  {
-    to: "/platform-admin/users",
-    label: "Manage Users",
-    icon: Users,
-  },
+  // {
+  //   to: "/platform-admin/users",
+  //   label: "Manage Users",
+  //   icon: Users,
+  // },
   {
     to: "/platform-admin/profile",
     label: "Profile",
@@ -61,17 +67,25 @@ export default function SystemAdminSidebar() {
 
   return (
     <aside className="sticky top-6 flex h-fit max-h-[calc(100vh-3rem)] flex-col overflow-y-auto rounded-2xl border border-emerald-100 bg-white shadow-sm">
-      <div className="border-b border-emerald-50 px-6 py-6">
-        <div className="flex items-center gap-3">
-          <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-600 text-white">
-            <Hospital size={23} />
-          </div>
-          <div>
-            <h1 className="font-bold text-gray-900">MediCare</h1>
-            <p className="text-xs text-gray-500">System Administration</p>
+<div className="border-b border-emerald-50 px-6 py-6">
+          <div className="flex items-center gap-3">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-emerald-600 p-1.5">
+              <img
+                src={logo}
+                alt="MediCare"
+                className="h-full w-full object-contain"
+              />
+            </div>
+            <div className="min-w-0">
+              <h1 className="truncate text-lg font-extrabold tracking-tight text-gray-900">
+                MediCare
+              </h1>
+              <p className="mt-0.5 truncate text-[11px] font-medium uppercase tracking-wider text-emerald-600">
+                System Administration
+              </p>
+            </div>
           </div>
         </div>
-      </div>
 
       <div className="border-b border-emerald-50 px-5 py-5">
         <p className="text-xs font-medium uppercase tracking-wide text-gray-400">

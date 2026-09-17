@@ -1,66 +1,7 @@
-import { useCallback, useEffect, useState } from "react";
-import { CheckCircle2, Shield, ShieldCheck, ShieldX, UserCheck, UserX, XCircle } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { CheckCircle2, RefreshCw, Shield, ShieldCheck, ShieldX, Clock, XCircle } from "lucide-react";
 import api from "./api.js";
-
-function DoctorAccessCard({ access, onAuthorize, onRevoke, loading }) {
-  const doctor = access.doctor;
-  const hospital = doctor?.memberships?.[0]?.hospital;
-  const isAuthorized = access.authorized;
-
-  return (
-    <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
-      <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
-        <div className="flex items-start gap-4">
-          <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl ${isAuthorized ? "bg-emerald-50 text-emerald-700" : "bg-gray-100 text-gray-500"}`}>
-            {isAuthorized ? <ShieldCheck size={23} /> : <Shield size={23} />}
-          </div>
-
-          <div>
-            <h3 className="text-lg font-bold text-gray-900">
-              Dr. {doctor?.name || "Unknown"}
-            </h3>
-            <p className="text-sm text-gray-500">
-              {doctor?.specialty || "General Medicine"}
-            </p>
-            <p className="text-xs text-gray-400">
-              {hospital?.name || "Hospital not specified"}
-            </p>
-            {isAuthorized && (
-              <span className="mt-2 inline-flex rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">
-                Access Authorized
-              </span>
-            )}
-            {!isAuthorized && (
-              <span className="mt-2 inline-flex rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700">
-                Awaiting Authorization
-              </span>
-            )}
-          </div>
-        </div>
-
-        <div className="flex shrink-0 gap-2">
-          {!isAuthorized ? (
-            <button
-              disabled={loading === access.id}
-              onClick={() => onAuthorize(doctor.id)}
-              className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-bold text-white hover:bg-emerald-700 disabled:opacity-50"
-            >
-              {loading === access.id ? "Processing..." : "Authorize Access"}
-            </button>
-          ) : (
-            <button
-              disabled={loading === access.id}
-              onClick={() => onRevoke(doctor.id)}
-              className="rounded-xl bg-red-50 px-4 py-2 text-sm font-bold text-red-600 hover:bg-red-100 disabled:opacity-50"
-            >
-              {loading === access.id ? "Processing..." : "Revoke Access"}
-            </button>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
+import MedicalRecordAccessRequestCard from "../components/cards/MedicalRecordAccessRequestCard.jsx";
 
 export default function MedicalRecordAccessPage() {
   const [accesses, setAccesses] = useState([]);
@@ -74,7 +15,7 @@ export default function MedicalRecordAccessPage() {
       setLoading(true);
       setError("");
 
-      const response = await api.get("/medical-record-access");
+      const response = await api.get("/medical-record-access/requests");
       setAccesses(response.data?.accesses || []);
     } catch (err) {
       console.error("Fetch access requests error:", err);
@@ -91,26 +32,41 @@ export default function MedicalRecordAccessPage() {
     fetchAccesses();
   }, [fetchAccesses]);
 
-  const authorizeDoctor = async (doctorId) => {
+  const respond = async (requestId, decision, successMessage) => {
     try {
-      setActionLoading(doctorId);
+      setActionLoading(requestId);
       setError("");
       setSuccess("");
 
-      await api.post(`/medical-record-access/${doctorId}/authorize`);
-      setSuccess("Doctor authorized successfully.");
-      fetchAccesses();
+      await api.post(`/medical-record-access/requests/${requestId}/${decision}`);
+      setSuccess(successMessage);
+      await fetchAccesses();
     } catch (err) {
-      console.error("Authorize doctor error:", err);
+      console.error(`${decision} access request error:`, err);
       setError(
-        err.response?.data?.message || "Unable to authorize this doctor."
+        err.response?.data?.message ||
+          `Unable to ${decision} this access request.`
       );
     } finally {
       setActionLoading(null);
     }
   };
 
-  const revokeDoctor = async (doctorId) => {
+  const acceptRequest = (requestId) =>
+    respond(
+      requestId,
+      "accept",
+      "Access granted. The doctor can now view your medical records for this appointment."
+    );
+
+  const rejectRequest = (requestId) =>
+    respond(
+      requestId,
+      "reject",
+      "Access rejected. The doctor will not be able to view your medical records."
+    );
+
+  const revokeAccess = async (doctorId) => {
     if (!window.confirm("Are you sure you want to revoke this doctor's access to your medical records?")) {
       return;
     }
@@ -122,7 +78,7 @@ export default function MedicalRecordAccessPage() {
 
       await api.patch(`/medical-record-access/${doctorId}/revoke`);
       setSuccess("Doctor access revoked successfully.");
-      fetchAccesses();
+      await fetchAccesses();
     } catch (err) {
       console.error("Revoke doctor error:", err);
       setError(
@@ -133,26 +89,36 @@ export default function MedicalRecordAccessPage() {
     }
   };
 
-  const pendingCount = accesses.filter((a) => !a.authorized).length;
-  const authorizedCount = accesses.filter((a) => a.authorized).length;
+  const counts = useMemo(
+    () => ({
+      total: accesses.length,
+      pending: accesses.filter((access) => !access.authorized && !access.rejected).length,
+      accepted: accesses.filter((access) => access.authorized).length,
+      rejected: accesses.filter((access) => access.rejected).length,
+    }),
+    [accesses]
+  );
+
+  const pendingRequests = accesses.filter((access) => !access.authorized && !access.rejected);
+  const otherRequests = accesses.filter((access) => access.authorized || access.rejected);
 
   return (
     <div className="space-y-6">
       <div>
         <p className="text-sm font-semibold text-emerald-600">Medical Records</p>
         <h1 className="mt-1 text-3xl font-extrabold text-[#152420]">
-          Medical Record Access
+          Medical Record Access Requests
         </h1>
         <p className="mt-2 text-sm text-gray-500">
-          Manage which doctors can access your medical records.
+          Doctors must ask before they can view your medical records. Accept or reject each request below.
         </p>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Summary icon={Shield} label="Total Requests" value={accesses.length} />
-        <Summary icon={ShieldCheck} label="Authorized" value={authorizedCount} />
-        <Summary icon={UserCheck} label="Pending" value={pendingCount} />
-        <Summary icon={ShieldX} label="Revoked" value="—" />
+        <Summary icon={Shield} label="Total Requests" value={counts.total} />
+        <Summary icon={Clock} label="Pending" value={counts.pending} />
+        <Summary icon={ShieldCheck} label="Authorized" value={counts.accepted} />
+        <Summary icon={ShieldX} label="Rejected" value={counts.rejected} />
       </div>
 
       {error && (
@@ -179,10 +145,10 @@ export default function MedicalRecordAccessPage() {
         <div className="flex flex-col justify-between gap-2 sm:flex-row sm:items-center">
           <div>
             <h2 className="text-xl font-bold text-gray-900">
-              Doctor Access Requests
+              Pending Requests
             </h2>
             <p className="mt-1 text-sm text-gray-500">
-              Doctors who need access to your medical records.
+              Doctors waiting for your decision.
             </p>
           </div>
 
@@ -190,6 +156,7 @@ export default function MedicalRecordAccessPage() {
             onClick={fetchAccesses}
             className="rounded-xl border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
           >
+            <RefreshCw size={16} className="mr-1 inline" />
             Refresh
           </button>
         </div>
@@ -199,31 +166,55 @@ export default function MedicalRecordAccessPage() {
             <div className="flex items-center justify-center py-14">
               <div className="h-9 w-9 animate-spin rounded-full border-4 border-emerald-100 border-t-emerald-600" />
             </div>
-          ) : accesses.length === 0 ? (
+          ) : pendingRequests.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-gray-200 bg-gray-50 p-12 text-center">
               <Shield className="mx-auto text-gray-400" size={38} />
               <h3 className="mt-4 text-lg font-bold text-gray-900">
-                No Access Requests
+                No Pending Requests
               </h3>
               <p className="mx-auto mt-2 max-w-md text-sm text-gray-500">
-                You have no doctor access requests at this time. Doctors you authorize will appear here.
+                You have no doctor access requests waiting for your decision.
               </p>
             </div>
           ) : (
             <div className="space-y-4">
-              {accesses.map((access) => (
-                <DoctorAccessCard
+              {pendingRequests.map((access) => (
+                <MedicalRecordAccessRequestCard
                   key={access.id}
                   access={access}
-                  onAuthorize={authorizeDoctor}
-                  onRevoke={revokeDoctor}
-                  loading={actionLoading}
+                  onAccept={acceptRequest}
+                  onReject={rejectRequest}
+                  busy={actionLoading === access.id}
                 />
               ))}
             </div>
           )}
         </div>
       </section>
+
+      {otherRequests.length > 0 && (
+        <section className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm sm:p-6">
+          <h2 className="text-xl font-bold text-gray-900">
+            Previous Decisions
+          </h2>
+          <p className="mt-1 text-sm text-gray-500">
+            Doctors you have authorized or rejected. You can revoke an authorization at any time.
+          </p>
+
+          <div className="mt-6 space-y-4">
+            {otherRequests.map((access) => (
+              <MedicalRecordAccessRequestCard
+                key={access.id}
+                access={access}
+                onAccept={acceptRequest}
+                onReject={rejectRequest}
+                onRevoke={revokeAccess}
+                busy={actionLoading === access.id || actionLoading === access.doctorId}
+              />
+            ))}
+          </div>
+        </section>
+      )}
     </div>
   );
 }

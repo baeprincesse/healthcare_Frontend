@@ -1,13 +1,12 @@
-import { useState, useEffect, useRef } from "react";
+import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext.jsx";
 import logo from "../../assets/logo.jpg";
-import api from "../../services/api.js";
 
 const ROLES = [
-  { value: "patient", label: "Patient" },
-  { value: "doctor", label: "Doctor" },
-  { value: "hospital_admin", label: "Hospital Administrator" },
+  { value: "PATIENT", label: "Patient" },
+  { value: "DOCTOR", label: "Doctor" },
+  { value: "HEAD_ADMINISTRATOR", label: "Hospital Administrator" },
 ];
 
 export default function Register() {
@@ -23,7 +22,6 @@ export default function Register() {
     role: "",
     specialty: "",
     professionalRegistrationNumber: "",
-    hospitalId: "",
     hospitalName: "",
     address: "",
     city: "",
@@ -36,24 +34,6 @@ export default function Register() {
   const [show, setShow] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-
-  const [hospitalQuery, setHospitalQuery] = useState("");
-  const [hospitalResults, setHospitalResults] = useState([]);
-  const [hospitalSearching, setHospitalSearching] = useState(false);
-  const [showHospitalResults, setShowHospitalResults] = useState(false);
-  const [selectedHospital, setSelectedHospital] = useState(null);
-  const searchTimeout = useRef(null);
-  const resultsRef = useRef(null);
-
-  useEffect(() => {
-    function handleClickOutside(event) {
-      if (resultsRef.current && !resultsRef.current.contains(event.target)) {
-        setShowHospitalResults(false);
-      }
-    }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
 
   const handle = (field) => (event) => {
     setForm((prev) => ({
@@ -68,7 +48,6 @@ export default function Register() {
       role: value,
       specialty: "",
       professionalRegistrationNumber: "",
-      hospitalId: "",
       hospitalName: "",
       address: "",
       city: "",
@@ -77,47 +56,6 @@ export default function Register() {
       description: "",
       officialRegistrationNumber: "",
     }));
-    setSelectedHospital(null);
-    setHospitalQuery("");
-    setHospitalResults([]);
-  };
-
-  const searchHospitals = async (query) => {
-    if (!query || query.trim().length < 2) {
-      setHospitalResults([]);
-      setHospitalSearching(false);
-      return;
-    }
-    setHospitalSearching(true);
-    try {
-      const response = await api.get("/hospitals/search", {
-        params: { q: query.trim() },
-      });
-      setHospitalResults(response.data?.data || []);
-      setShowHospitalResults(true);
-    } catch {
-      setHospitalResults([]);
-    } finally {
-      setHospitalSearching(false);
-    }
-  };
-
-  const handleHospitalQueryChange = (value) => {
-    setHospitalQuery(value);
-    setSelectedHospital(null);
-    setForm((prev) => ({ ...prev, hospitalId: "" }));
-
-    if (searchTimeout.current) clearTimeout(searchTimeout.current);
-    searchTimeout.current = setTimeout(() => {
-      searchHospitals(value);
-    }, 400);
-  };
-
-  const selectHospital = (hospital) => {
-    setSelectedHospital(hospital);
-    setHospitalQuery(hospital.name);
-    setForm((prev) => ({ ...prev, hospitalId: hospital.id }));
-    setShowHospitalResults(false);
   };
 
   const submit = async (e) => {
@@ -164,7 +102,7 @@ export default function Register() {
       return;
     }
 
-    if (form.role === "doctor") {
+    if (form.role === "DOCTOR") {
       if (!form.specialty.trim()) {
         setError("Please enter your specialty.");
         return;
@@ -177,13 +115,13 @@ export default function Register() {
         setError("Professional registration number must be at least 3 characters.");
         return;
       }
-      if (!form.hospitalId) {
-        setError("Please select your hospital.");
+      if (!form.hospitalName.trim()) {
+        setError("Please enter the hospital where you work.");
         return;
       }
     }
 
-    if (form.role === "hospital_admin") {
+    if (form.role === "HEAD_ADMINISTRATOR") {
       if (!form.hospitalName.trim()) {
         setError("Please enter the hospital name.");
         return;
@@ -214,13 +152,13 @@ export default function Register() {
         role: form.role,
       };
 
-      if (form.role === "doctor") {
+if (form.role === "DOCTOR") {
         payload.specialty = form.specialty.trim();
         payload.professionalRegistrationNumber = form.professionalRegistrationNumber.trim();
-        payload.hospitalId = Number(form.hospitalId);
+        payload.hospitalName = form.hospitalName.trim();
       }
 
-      if (form.role === "hospital_admin") {
+if (form.role === "HEAD_ADMINISTRATOR") {
         payload.hospitalName = form.hospitalName.trim();
         payload.address = form.address.trim();
         payload.city = form.city.trim();
@@ -241,7 +179,7 @@ export default function Register() {
 
       console.log("REGISTER SUCCESS:", data);
 
-      navigate("/login", { replace: true });
+      navigate("/login", { replace: true, state: { message: data.message } });
     } catch (error) {
       console.error("REGISTRATION FAILED:", error);
       setError(
@@ -393,7 +331,7 @@ export default function Register() {
             </div>
 
             {/* Doctor: specialty + professional registration number */}
-            {form.role === "doctor" && (
+            {form.role === "DOCTOR" && (
               <>
                 <label className="block text-xs font-medium text-slate-700">
                   Specialty
@@ -421,65 +359,26 @@ export default function Register() {
               </>
             )}
 
-            {/* Doctor: hospital search */}
-            {form.role === "doctor" && (
-              <div className="relative" ref={resultsRef}>
-                <label className="block text-xs font-medium text-slate-700">
-                  Hospital where you work
+            {/* Doctor: hospital name (free text, not a picker) */}
+            {form.role === "DOCTOR" && (
+              <label className="block text-xs font-medium text-slate-700">
+                Hospital where you work
 
-                  <input
-                    type="text"
-                    value={hospitalQuery}
-                    onChange={(e) => handleHospitalQueryChange(e.target.value)}
-                    onFocus={() => {
-                      if (hospitalResults.length > 0) setShowHospitalResults(true);
-                    }}
-                    placeholder="Search hospital..."
-                    className="mt-1.5 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs outline-none transition focus:border-emerald-500 focus:bg-white focus:ring-2 focus:ring-emerald-100"
-                  />
-                </label>
-
-                {selectedHospital && form.hospitalId && (
-                  <div className="mt-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-700">
-                    Selected: <span className="font-semibold">{selectedHospital.name}</span>
-                    {selectedHospital.city ? ` — ${selectedHospital.city}` : ""}
-                  </div>
-                )}
-
-                {showHospitalResults && (
-                  <div className="absolute left-0 right-0 top-full z-10 mt-1 max-h-48 overflow-y-auto rounded-lg border border-slate-200 bg-white shadow-lg">
-                    {hospitalSearching && (
-                      <div className="px-3 py-2 text-xs text-slate-500">Searching...</div>
-                    )}
-                    {!hospitalSearching && hospitalResults.length === 0 && (
-                      <div className="px-3 py-2 text-xs text-slate-500">
-                        No hospitals found.{" "}
-                        <span className="text-slate-400">
-                          Ask your hospital administrator to register it first.
-                        </span>
-                      </div>
-                    )}
-                    {!hospitalSearching &&
-                      hospitalResults.map((h) => (
-                        <button
-                          type="button"
-                          key={h.id}
-                          onClick={() => selectHospital(h)}
-                          className="flex w-full items-start gap-2 px-3 py-2 text-left text-xs text-slate-700 hover:bg-emerald-50"
-                        >
-                          <span className="font-medium">{h.name}</span>
-                          {h.city && (
-                            <span className="text-slate-400">— {h.city}</span>
-                          )}
-                        </button>
-                      ))}
-                  </div>
-                )}
-              </div>
+                <input
+                  type="text"
+                  value={form.hospitalName}
+                  onChange={handle("hospitalName")}
+                  placeholder="e.g. General Hospital"
+                  className="mt-1.5 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs outline-none transition focus:border-emerald-500 focus:bg-white focus:ring-2 focus:ring-emerald-100"
+                />
+                <span className="mt-1 block text-[10px] text-slate-400">
+                  Enter the name of the hospital where you work. Your affiliation request will be sent to the Head Administrator for approval.
+                </span>
+              </label>
             )}
 
             {/* Hospital admin: hospital fields */}
-            {form.role === "hospital_admin" && (
+            {form.role === "HEAD_ADMINISTRATOR" && (
               <>
                 <label className="block text-xs font-medium text-slate-700">
                   Hospital Name

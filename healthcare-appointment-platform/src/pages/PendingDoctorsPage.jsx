@@ -61,14 +61,19 @@ export default function PendingDoctorsPage() {
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(null);
   const [error, setError] = useState("");
+  const [allDoctors, setAllDoctors] = useState([]);
 
   const fetchDoctors = useCallback(async () => {
     try {
       setLoading(true);
       setError("");
 
-      const response = await api.get("/doctor-approval/pending");
-      setDoctors(response.data?.doctors || []);
+      const [pendingResponse, allResponse] = await Promise.all([
+        api.get("/doctor-approval/pending"),
+        api.get("/doctor-approval/all"),
+      ]);
+      setDoctors(pendingResponse.data?.doctors || []);
+      setAllDoctors(allResponse.data?.doctors || []);
     } catch (err) {
       console.error("Fetch pending doctors error:", err);
       setError(
@@ -90,7 +95,7 @@ export default function PendingDoctorsPage() {
       setError("");
 
       await api.patch(`/doctor-approval/${id}/approve`);
-      setDoctors((current) => current.filter((doctor) => doctor.id !== id));
+      await fetchDoctors();
     } catch (err) {
       console.error("Approve doctor error:", err);
       setError(
@@ -111,7 +116,7 @@ export default function PendingDoctorsPage() {
       setError("");
 
       await api.patch(`/doctor-approval/${id}/reject`);
-      setDoctors((current) => current.filter((doctor) => doctor.id !== id));
+      await fetchDoctors();
     } catch (err) {
       console.error("Reject doctor error:", err);
       setError(
@@ -138,9 +143,9 @@ export default function PendingDoctorsPage() {
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Summary icon={Clock3} label="Pending Doctors" value={doctors.length} />
-        <Summary icon={Stethoscope} label="Total Doctors" value="—" />
-        <Summary icon={UserCheck} label="Approved" value="—" />
-        <Summary icon={UserX} label="Rejected" value="—" />
+        <Summary icon={Stethoscope} label="Total Doctors" value={allDoctors.length} />
+        <Summary icon={UserCheck} label="Approved" value={allDoctors.filter((doctor) => doctor.accountStatus === "APPROVED").length} />
+        <Summary icon={UserX} label="Rejected" value={allDoctors.filter((doctor) => doctor.accountStatus === "REJECTED").length} />
       </div>
 
       {error && (

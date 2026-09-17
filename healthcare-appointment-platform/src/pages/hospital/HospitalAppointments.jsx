@@ -26,18 +26,30 @@ export default function HospitalAppointments() {
 
   const getStatusLabel = (status) => {
     switch (status) {
+      case "DRAFT": return "Draft";
       case "PENDING": return "Pending";
+      case "DISAPPROVED": return "Disapproved";
+      case "CONFIRMED": return "Confirmed";
+      case "RESCHEDULED": return "Rescheduled";
+      case "REASSIGN": return "Reassign";
       case "IN_PROCESS": return "In Process";
       case "TERMINATED": return "Terminated";
+      case "NO_SHOW": return "No Show";
       default: return status;
     }
   };
 
   const getStatusColor = (status) => {
     switch (status) {
+      case "DRAFT": return "bg-slate-100 text-slate-600";
       case "PENDING": return "bg-amber-50 text-amber-700";
+      case "DISAPPROVED": return "bg-red-50 text-red-700";
+      case "CONFIRMED": return "bg-emerald-50 text-emerald-700";
+      case "RESCHEDULED": return "bg-purple-50 text-purple-700";
+      case "REASSIGN": return "bg-indigo-50 text-indigo-700";
       case "IN_PROCESS": return "bg-blue-50 text-blue-700";
       case "TERMINATED": return "bg-gray-100 text-gray-600";
+      case "NO_SHOW": return "bg-red-50 text-red-700";
       default: return "bg-emerald-50 text-emerald-700";
     }
   };

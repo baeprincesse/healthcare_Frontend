@@ -9,7 +9,7 @@ export default function DashboardPage() {
   const [paymentsLoading, setPaymentsLoading] = useState(false)
 
   useEffect(() => {
-    if (user?.role === "patient") {
+    if (user?.role === "PATIENT") {
       setPaymentsLoading(true)
       api.get("/payments/history")
         .then(res => setPayments(res.data?.payments || []))
@@ -75,7 +75,7 @@ export default function DashboardPage() {
             </dl>
           </div>
 
-          {user?.role === "patient" && (
+          {user?.role === "PATIENT" && (
             <div className="rounded-3xl bg-white p-8 shadow-sm">
               <h2 className="text-xl font-semibold text-slate-950">Recent Payments</h2>
               {paymentsLoading ? (

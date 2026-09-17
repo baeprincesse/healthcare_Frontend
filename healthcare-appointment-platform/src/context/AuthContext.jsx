@@ -5,20 +5,66 @@ import {
   useMemo,
   useState,
 } from "react";
-import api from "../services/api.js";
+import api, { clearAuthSession } from "../services/api.js";
 
 const AuthContext = createContext(null);
 
+function getTokenExpiry(token) {
+  try {
+    const encodedPayload = token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/");
+    const payload = JSON.parse(atob(encodedPayload.padEnd(Math.ceil(encodedPayload.length / 4) * 4, "=")));
+    return typeof payload.exp === "number" ? payload.exp * 1000 : null;
+  } catch {
+    return null;
+  }
+}
+
+function getStoredUser() {
+  const token = localStorage.getItem("token");
+  const storedUser = localStorage.getItem("mc_user");
+  const expiresAt = token ? getTokenExpiry(token) : null;
+  if (!token || !storedUser || (expiresAt && expiresAt <= Date.now())) {
+    clearAuthSession();
+    return null;
+  }
+
+  try {
+    return JSON.parse(storedUser);
+  } catch {
+    clearAuthSession();
+    return null;
+  }
+}
+
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(() => {
-    try {
-      const storedUser = localStorage.getItem("mc_user");
-      return storedUser ? JSON.parse(storedUser) : null;
-    } catch (error) {
-      console.error("Unable to load stored user:", error);
-      return null;
-    }
-  });
+  const [user, setUser] = useState(getStoredUser);
+
+  useEffect(() => {
+    const handleAuthLogout = () => {
+      setUser(null);
+      localStorage.removeItem("mc_user");
+      localStorage.removeItem("token");
+    };
+
+    window.addEventListener("auth:logout", handleAuthLogout);
+
+    return () => {
+      window.removeEventListener("auth:logout", handleAuthLogout);
+    };
+  }, []);
+
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    const expiresAt = token ? getTokenExpiry(token) : null;
+    if (!expiresAt) return undefined;
+
+    const timeout = window.setTimeout(() => {
+      clearAuthSession();
+      setUser(null);
+    }, Math.max(0, expiresAt - Date.now()));
+
+    return () => window.clearTimeout(timeout);
+  }, [user]);
 
   useEffect(() => {
     if (user) {
@@ -76,14 +122,13 @@ export function AuthProvider({ children }) {
 
   const logout = () => {
     setUser(null);
-    localStorage.removeItem("token");
-    localStorage.removeItem("mc_user");
+    clearAuthSession();
   };
 
   const value = useMemo(
     () => ({
       user,
-      authenticated: Boolean(user),
+      authenticated: Boolean(user) && Boolean(localStorage.getItem("token")),
       login,
       register,
       logout,

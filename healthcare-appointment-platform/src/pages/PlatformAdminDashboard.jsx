@@ -59,6 +59,7 @@ export default function PlatformAdminDashboard() {
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(null);
   const [error, setError] = useState("");
+  const [overview, setOverview] = useState(null);
 
   const fetchHospitals = useCallback(async () => {
     try {
@@ -67,7 +68,7 @@ export default function PlatformAdminDashboard() {
 
       const response = await api.get("/platform-admin/hospitals/pending");
       setHospitals(response.data?.hospitals || []);
-    } catch {
+    } catch (err) {
       console.error("Platform admin hospital request error:", err);
       setError(
         err.response?.data?.message ||
@@ -78,9 +79,19 @@ export default function PlatformAdminDashboard() {
     }
   }, []);
 
+  const fetchOverview = useCallback(async () => {
+    try {
+      const response = await api.get("/platform-admin/overview");
+      setOverview(response.data?.data || null);
+    } catch (err) {
+      setError(err.response?.data?.message || "Unable to load platform overview.");
+    }
+  }, []);
+
   useEffect(() => {
     fetchHospitals();
-  }, [fetchHospitals]);
+    fetchOverview();
+  }, [fetchHospitals, fetchOverview]);
 
   const approveHospital = async (id) => {
     try {
@@ -89,7 +100,7 @@ export default function PlatformAdminDashboard() {
 
       await api.put(`/platform-admin/hospitals/${id}/approve`);
       setHospitals((current) => current.filter((hospital) => hospital.id !== id));
-    } catch {
+    } catch (err) {
       console.error("Approve hospital error:", err);
       setError(
         err.response?.data?.message || "Unable to approve this hospital."
@@ -110,7 +121,7 @@ export default function PlatformAdminDashboard() {
 
       await api.put(`/platform-admin/hospitals/${id}/reject`);
       setHospitals((current) => current.filter((hospital) => hospital.id !== id));
-    } catch {
+    } catch (err) {
       console.error("Reject hospital error:", err);
       setError(
         err.response?.data?.message || "Unable to reject this hospital."
@@ -136,9 +147,9 @@ export default function PlatformAdminDashboard() {
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Summary icon={Clock3} label="Pending Requests" value={hospitals.length} />
-        <Summary icon={Building2} label="Hospitals" value="—" />
-        <Summary icon={Users} label="Users" value="—" />
-        <Summary icon={CheckCircle2} label="Platform Status" value="Active" />
+        <Summary icon={Building2} label="Hospitals" value={overview?.hospitals ?? "—"} />
+        <Summary icon={Users} label="Users" value={overview?.users ?? "—"} />
+        <Summary icon={CheckCircle2} label="Platform Status" value={overview?.status || "—"} />
       </div>
 
       {error && (
